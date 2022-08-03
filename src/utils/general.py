@@ -135,7 +135,7 @@ def busqueda_fecha(text_aux):
     
     #Búsqueda de párrafo donde se mencione ponente con fecha   
     ponente_fecha_aux = re.findall(
-        r'(?:Amparo|Revisión|Contradicción|Queja|Facultad|Incidente|Reclamación|Inconformidad|Competencia|Recurso de|Impedimento|Acción de inconstitucionalidad)([\s\S]*?)(Ponente: |Ponente )([\s\S]*?)(Secretari\w: |Secretari\ws:|Secretari\w. )([\s\S]*?)(?:\.?)',
+        r'(?:Amparo|Revisión|Contradicción|Queja|Facultad|Incidente|Reclamación|Inconformidad|Competencia|Recurso de|Impedimento|Acción de inconstitucionalidad)([\s\S]*?)(Ponente: |Ponente )([\s\S]*?)(?:Secretari\w: |Secretari\ws:|Secretari\w. )?([\s\S]*?)(?:\.?)',
         text_aux)
     ponente_fecha_texto = ''.join([''.join(j) for j in ponente_fecha_aux])
     
@@ -153,5 +153,10 @@ def busqueda_secretarios(text_aux):
     x1_secretario = re.findall("(?:La publicación |La publicacion)([\s\S]*?) (?:del ponente|el ponente)",text_aux)
     x10_secretario = 1
     secretarios = funcion_auxiliar_secretarios(x0_secretario,x1_secretario,x10_secretario)
+    
+    #Si no son 5 secretarios, agrega 'NA' a la lista
+    if len(secretarios) != 5:
+        NA_sec = [('NA') for i in range(5-len(secretarios))]
+        secretarios.extend(NA_sec)
         
     return secretarios
