@@ -45,6 +45,7 @@ def extraccion_encabezado(text):
     
     #Eliminar tabulaciones adicionales
     text_aux = text.strip()
+    text_aux = text_aux.replace(' Fuente:','\n\nFuente:')
     
     #Posicion en el texto de las variables
     pos_registro_digital = text_aux.find('Registro digital:')
@@ -129,7 +130,7 @@ def extraccion_encabezado(text):
 def busqueda_ponentes(text_aux):
 
     x0_ponente = re.findall(
-        "(?:Ponente: Secretario Lic\. |Ponente: |Ponente |Ponente. |Ponentes: |Ponente:\.|Ponente:)([\s\S]*?)(?:.###|. Secretar|.Secretar|,|.\nSecretar|\. secretari|\. Relacionada|\. Disidente|\. Improcedencia|\. Semanario|\. Encargad|\. Competencia|\. Incidente|\. Queja|\. Reclamaci|\. Recurso|\. Juicio|\. Jurisprudencia| Magistrado|\. Tomo|\. Vol\wmen|;|\. Nota|\. En| en funciones| en sustitución| y el engrose|Pág\.|Vol|\.Tom|\. V\wase|\. V\wanse|\. Revisión|\. Amparo|\. Ausente|\. Séptima|\. Sexta|\.\"\.)",
+        "(?:Ponente: Secretario Lic\. |Ponente: |Ponente |Ponente. |Ponentes: |Ponente:\.|Ponente:)([\s\S]*?)(?:.###|. Secretar|.Secretar|,|.\nSecretar|\. secretari|\. Relacionada|\. Disidente|\. Improcedencia|\. Semanario|\. Encargad|\. Competencia|\. Incidente|\. Queja|\. Reclamaci|\. Recurso|\. Juicio|\. Jurisprudencia| Magistrado|\. Tomo|\. Vol\wmen|;|\. Nota|\. NOTA|\. En| en funciones| en sustitución|\.; en su| y el engrose|Pág\.|Vol|\.Tom|\. V\wase|\. V\wanse|\. Revisión|\. Amparo| Amparo directo|\. Ausente|\. Séptima|\. Sexta|\.\"\.| \(en su ausencia|\. Texto|\. Cinco|\. Impedido|\. en su ausencia)",
         text_aux) 
     x1_ponente = re.findall("publicación ([\s\S]*?) del ponente",text_aux )
     x2_ponente = re.findall("Relator: ([\s\S]*?)\.",text_aux ) #re.findall(r"Relator",text_aux)
@@ -148,7 +149,7 @@ def busqueda_ponentes(text_aux):
 def busqueda_fecha(text_aux):
     
     #Búsqueda de párrafo donde se mencione caso con ponente con fecha   
-    ponente_fecha_aux = re.findall(r'(?:Amparo|Revisión|Contradicción|Queja|Facultad|Incidente|Reclamación|Inconformidad|Competencia|Recurso de|Impedimento|Acción de inconstitucionalidad|Varios |Controversia constitucional|Reconocimiento de inocencia|Improcedencia|Aclaración de sentencia en la contra|Repetición|Inejecuci|Expediente vario|Solicitud|Acumulaci\wn|Trámite|Consulta|Recurso en|Juicio|Reposici\wn|Incompetencia|Incidente|Vol\wmen \d{1,2}, p\wgina|Indulto necesario)([\s\S]*?)(Ponente: |Ponente |Ponente\.|Ponente:\.|La publicación no menciona el nombre del ponente)([\s\S]*?)(?:Secretari\w: |Secretari\ws:|Secretari\w. )?([\s\S]*?)(?:\.?)', text_aux)
+    ponente_fecha_aux = re.findall(r'(?:Amparo|Revisión|Contradicción|Queja|Facultad|Incidente|Reclamación|Inconformidad|Competencia|Recurso de|Impedimento|Acción de inconstitucionalidad|Varios |Controversia constitucional|Reconocimiento de inocencia|Improcedencia|Aclaración de sentencia en la contra|Repetición|Inejecuci|Expediente vario|Solicitud|Acumulaci\wn|Trámite|Consulta|Recurso en|Juicio|Reposici\wn|Incompetencia|Incidente|Conflicto competencial|Vol\wmen \d{1,2}, p\wgina|Indulto necesario|C\. C\. \d{2,3}/\d{2})([\s\S]*?)(Ponente: |Ponente |Ponente\.|Ponente:\.|Ponente:|La publicación no menciona el nombre del ponente)([\s\S]*?)(?:Secretari\w: |Secretari\ws:|Secretari\w. )?([\s\S]*?)(?:\.?)', text_aux)
     ponente_fecha_texto = ''.join([''.join(j) for j in ponente_fecha_aux])
         
     fecha = re.findall('(\d{1,2}( de|de)*? [a-zA-Z]{4,10}( de| del)*? \d{4})',ponente_fecha_texto)
@@ -165,7 +166,7 @@ def busqueda_fecha(text_aux):
 def busqueda_secretarios(text_aux,ponentes):
     
     x0_secretario = re.findall(
-    "(?:Secretar\w\w: |Secretari\ws: |Secretari\w\. |secretari\w: )([\s\S]*?)(?:\.###|\. Amparo|\. Facultad| Amparo directo|\. Inconformidad|\. Acción|\. Varios|\. Controversia|\. Reconocimiento|\. Expediente vario|\. Consulta|\. Reposici\wn|\. \(|\. La |\. Incompetencia|\. Vol\wmenes|se encargo|Quinta Epoca:|\. Hay cosa|\. Acumulación|Impedimento|Antecedente:|Revisión|Expediente|Los señores|Jurisprudencia|demás que las|XIV.|las demás que|fallado|no superan|Aplicada|De conformidad|contra el|para el|Lo resolvió|Secretarrio:|Presidente|Secretario encargado|ha estimado|Disidente.|Veáse|\. Impedido:|Vease:|Por |Sexta Epoca|Integró|Para|Tribunal|\. Ausente|votos|_________________|Texto|Secretarios|Reproduce|Véanse:|Ponente:|EL|Tomo|Resuelto|Ausentes|Que |Varios|Con |\. Aclaración|Tomando|\. Juicio|Relator|\. Ministro|Incidente|/.|Texto aprobado|Relacionada|Séptima|Acción|Facultad|Controversia|\. Solicitud|Sostiene|La |\. Inejecución|Octava|En |Este |Se |\. Repetición|Reitera|\. El |Contradicción|La presente|El Tribunal|Tesis|La Primera|Sostienen|Informe|Véase|Esta|Importa|Disidentes:|Voto|Ausente:|Secretario:|###|Inconformidad|\. Conflicto|Nota|Criterios|Competencia|Precedente|\. Recurso| Recurso de|Secretaria|;|\. Nota\:|\. Notas\:|Nota\:|Pág\.|Vol|\. Volumen|\. Volúme|\.Tom|\. Véase|\. \. Amparo|\. Amparo di|\.   Amparo dir|\. Amparo in|Amparo en|\. Undécima Época|\. Décima Época|\. Novena Época|\. Octava Época|\. Séptima Época|\. Sexta Época|\. Quinta Época|\. Cuarta Época|\. Tercera Época|\. Segunda Época|\. Primera Época|\. Undécima Epoca|\. Décima Epoca|\. Novena Epoca|\. Octava Epoca|\. Séptima Epoca|\. Sexta Epoca|\. Quinta Epoca|\. Cuarta Epoca|\. Tercera Epoca|\. Segunda Epoca|\. Primera Epoca|\. Improcedencia civil|Sostiene la misma tesis:|\. Revisión fiscal|\. Unanimidad|\. Queja|Queja|\. Competencia|\. Reclamación|\.   Reclamación /.|\.  de enero de|\.  de febrero de|\.  de marzo de|\.  de abril de|\.  de mayo de|\.  de junio de|\.  de julio de|\.  de agosto de|\.  de septiembre de|\.  de octubre de|\.  de noviembre de|\.  de diciembre de|\. Disidente:|\. Precedentes|\. Improcedencia|\. Impedimento|\. Excusa|\. Incidente|\. Encargad|\. Revisión|\. Tomo|por licencia concedida|en funciones de Magistrado por Ministerio de Ley|\. Engrose: |\. Criterios|\. Tesis|\.   Tesis|\. El Tribunal|\. Contradicción de tesis|\. Texto|\. NOTA|\. Recurso de|\.   El Tribunal|\. Véanse|\.   Revisión|.   Notas|\. Semanario|\. Secretario)", text_aux)                                
+    "(?:Secretar\w\w: |Secretari\ws: |Secretari\w\. |secretari\w: )([\s\S]*?)(?:\.###|\. Amparo|\. Facultad| Amparo directo|\. Inconformidad|\. Acción|\. Varios|\. Controversia|\. Reconocimiento|\. Expediente vario|\. Consulta|\. Reposici\wn|\. \(|\. La |\. Incompetencia|\. Vol\wmenes|se encargo|Quinta Epoca:|\. Hay cosa|\. Acumulación|Impedimento|Antecedente:|Revisión|Expediente|Los señores|Jurisprudencia|demás que las|XIV.|las demás que|fallado|no superan|Aplicada|De conformidad|contra el|para el|Lo resolvió|Secretarrio:|Presidente|Secretario encargado|ha estimado|Disidente.|Veáse|\. Impedido:|Vease:|Por |Sexta Epoca|Integró|Para|Tribunal|\. Ausente|votos|_________________|Texto|Secretarios|Reproduce|Véanse:|Ponente:|EL|Tomo|Resuelto|Ausentes|Que |Varios|Con |\. Aclaración|Tomando|\. Juicio|Relator|\. Ministro|Incidente|/.|Texto aprobado|Relacionada|Séptima|Acción|Facultad|Controversia|\. Solicitud|Sostiene|La |\. Inejecución|Octava|En |Este |Se |\. Repetición|Reitera|\. El |Contradicción|La presente|El Tribunal|Tesis|La Primera|Sostienen|Informe|Véase|Esta|Importa|Disidentes:|Voto|Ausente:|Secretario:|###|Inconformidad|\. Conflicto|Nota|Criterios|Competencia|Precedente|\. Recurso| Recurso de|Secretaria|;|\. Nota\:|\. Notas\:|Nota\:|Pág\.|Vol|\. Volumen|\. Volúme|\.Tom|\. Véase|\. \. Amparo|\. Amparo di|\.   Amparo dir|\. Amparo in|Amparo en|\. Undécima Época|\. Décima Época|\. Novena Época|\. Octava Época|\. Séptima Época|\. Sexta Época|\. Quinta Época|\. Cuarta Época|\. Tercera Época|\. Segunda Época|\. Primera Época|\. Undécima Epoca|\. Décima Epoca|\. Novena Epoca|\. Octava Epoca|\. Séptima Epoca|\. Sexta Epoca|\. Quinta Epoca|\. Cuarta Epoca|\. Tercera Epoca|\. Segunda Epoca|\. Primera Epoca|\. Improcedencia civil|Sostiene la misma tesis:|\. Revisión fiscal|\. Unanimidad|\. Queja|Queja|\. Competencia|\. Reclamación|\.   Reclamación /.|\.  de enero de|\.  de febrero de|\.  de marzo de|\.  de abril de|\.  de mayo de|\.  de junio de|\.  de julio de|\.  de agosto de|\.  de septiembre de|\.  de octubre de|\.  de noviembre de|\.  de diciembre de|\. Disidente:|\. Precedentes|\. Improcedencia|\. Impedimento|\. Excusa|\. Incidente|\. Encargad|\. Revisión|\. Tomo|por licencia concedida|en funciones de Magistrado por Ministerio de Ley|\. Engrose: |\. Criterios|\. Tesis|\.   Tesis|\. El Tribunal|\. Contradicción de tesis|\. Texto|\. NOTA|\. Recurso de|\.   El Tribunal|\. Véanse|\.   Revisión|.   Notas|\. Semanario|\. Secretario|\. Tercera|\. C\. C\.)", text_aux)                                
     x1_secretario = re.findall("(?:La publicación |La publicacion)([\s\S]*?) (?:del ponente|el ponente)",text_aux)
     x10_secretario = 1
     secretarios = funcion_auxiliar_secretarios(x0_secretario,x1_secretario,x10_secretario)
@@ -181,13 +182,13 @@ def busqueda_secretarios(text_aux,ponentes):
 def crea_tabla(id_tesis,tesis,instancia,epoca,materia,ponentes,secretarios,fecha):
     
     #Vectores para crear tabla
+    vector_reiteracion = [(i+1) for i in range(len(ponentes))]
     vector_id_tesis = len(ponentes)*id_tesis
-    vector_numero = [(i+1) for i in range(len(ponentes))]
     vector_tesis = [(tesis) for i in range(len(ponentes))]
     vector_instancia = [(instancia) for i in range(len(ponentes))]
     vector_epoca = [(epoca) for i in range(len(ponentes))]
     vector_materia = [(materia) for i in range(len(ponentes))]
 
-    tabla_iteracion = pd.DataFrame({'id_tesis':vector_id_tesis,'tesis':vector_tesis,'instancia':vector_instancia,'epoca':vector_epoca,'materia':vector_materia,'#_ponente':vector_numero,'ponente':ponentes,'#_secretario':vector_numero, 'secretario':secretarios,'fecha':fecha})
+    tabla_iteracion = pd.DataFrame({'id_tesis':vector_id_tesis,'tesis':vector_tesis,'instancia':vector_instancia,'epoca':vector_epoca,'materia':vector_materia,'#_reiteracion':vector_reiteracion,'ponente':ponentes,'secretario':secretarios,'fecha':fecha})
                 
     return tabla_iteracion
