@@ -22,6 +22,7 @@ def limpieza_texto(text,id_tesis):
     text_aux = text_aux.replace('Ponente: La publicación no menciona el nombre del ponente.','La publicación no menciona el nombre del ponente.')
     text_aux = text_aux.replace('de la ponencia del Ministro Jorge Mario Pardo Rebolledo (Secretario: Ricardo Antonio Silva Díaz)','de la ponencia del Ministro Jorge Mario Pardo Rebolledo (secr.: Ricardo Antonio Silva Díaz)')
     text_aux = text_aux.replace('Ponente: Pedro Guerrero Martínez. Juan Díaz Romero','Ponente: Pedro Guerrero Martínez. Secretario: Juan Díaz Romero')
+    text_aux = text_aux.replace('Ponente: Gerardo Domínguez. Ponente: Enrique Gómez Mendoza','Ponente: Gerardo Domínguez. Secretario: Enrique Gómez Mendoza')
     text_aux = text_aux.replace('J.Tomás Garrido Muñoz','J. Tomás Garrido Muñoz')
     text_aux = text_aux.replace('Secretaria: Secretaria: Alejandra','Secretaria: Alejandra')
     text_aux = text_aux.replace('César De La Rosa Zubran','César de la Rosa Zubran')

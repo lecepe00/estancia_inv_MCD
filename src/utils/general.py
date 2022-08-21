@@ -129,7 +129,7 @@ def extraccion_encabezado(text):
 
 def busqueda_ponentes(text_aux):
 
-    x0_ponente = re.findall("(?:Ponente: Secretario Lic\. |Ponente: |Ponente |Ponente. |Ponentes: |Ponente:\.|Ponente:)([\s\S]*?)(?:.###|. Secretar|.Secretar|,|.\nSecretar|\. secretari|\. Relacionada|\. Disidente|\. Improcedencia|\. Semanario|\. Encargad|\. Competencia|\. Incidente|\. Queja|\. Reclamaci|\. Recurso|\. Juicio|\. Jurisprudencia| Magistrado|\. Tomo|\. Vol\wmen|;|\. Nota|\. NOTA|\. En| en funciones| en sustitución|\.; en su| y el engrose|Pág\.|Vol|\.Tom|\. V\wase|\. V\wanse|\. Revisión|\. Amparo| Amparo directo|\. Ausente|\. Séptima|\. Sexta|\.\"\.| \(en su ausencia|\. Texto|\. Cinco|\. Impedido|\. en su ausencia)",text_aux) 
+    x0_ponente = re.findall("(?:Ponente: Secretario Lic\. |Ponente: |Ponente |Ponente. |Ponentes: |Ponente:\.|Ponente:)([\s\S]*?)(?:.###|. Secretar|.Secretar|,|.\nSecretar|\. secretari|\. Relacionada|\. Disidente|\. Improcedencia|\. Semanario|\. Encargad|\. Competencia|\. Incidente|\. Queja|\. Reclamaci|\. Recurso|\. Juicio|\. Jurisprudencia| Magistrado|\. Tomo|\. Vol\wmen|;|\. Nota|\. NOTA|\. En| en funciones| en sustitución|\.; en su| y el engrose|Pág\.|Vol|\.Tom|\. V\wase|\. V\wanse|\. Revisión|\. Amparo| Amparo directo|\. Ausente|\. Séptima|\. Sexta|\.\"\.| \(en su ausencia|\. Texto|\. Cinco|\. Impedido|\. en su ausencia|\. Relator)",text_aux) 
     x1_ponente = re.findall("publicación ([\s\S]*?) del ponente",text_aux )
     x2_ponente = re.findall("Relator: ([\s\S]*?)\.",text_aux ) #re.findall(r"Relator",text_aux)
     x3_ponente = 1
