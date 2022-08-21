@@ -1,0 +1,311 @@
+---
+title: "Análisis de Redes - Tesis de Jurisprudencia"
+output: html_document
+date: '2022-08-16'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Análisis de Redes - Tesis de Jurisprudencia
+
+Comenzamos cargando librerías y los datos correspondientes:
+
+```{r}
+library(tidyverse)
+library(tidygraph)
+library(ggraph)
+library(igraphdata)
+total <- read.csv("../output/tesis_juris_rep.csv")
+socio <- read.csv("../data/sociodemo/X1_Sociodemograficos_1.csv")
+dim(total)
+dim(socio)
+```
+
+Contamos nombres únicos:
+
+```{r}
+count(distinct(total, ponente))
+count(distinct(total, secretario))
+```
+
+Hacemos relación de nombres con IDs:
+
+```{r}
+set.seed(2022)
+# Primero limpiamos nombres:
+total_1 <- total %>% select(id_tesis, X._reiteracion, instancia, epoca, materia, fecha, ponente, secretario, ponente_rep, secretario_rep) %>%
+  mutate(id_tesis = as.character(id_tesis)) %>%
+  
+  mutate(ponente_clean = str_to_lower(ponente)) %>%
+  mutate(ponente_clean = str_replace_all(ponente_clean, " ", "")) %>%
+  mutate(ponente_clean = str_replace_all(ponente_clean, "[[:punct:]]", "")) %>%
+  mutate(ponente_clean = chartr('áéíóú','aeiou', ponente_clean)) %>%
+  
+  mutate(secretario_clean = str_to_lower(secretario))  %>%
+  mutate(secretario_clean = str_replace_all(secretario_clean, " ", "")) %>%
+  mutate(secretario_clean = str_replace_all(secretario_clean, "[[:punct:]]", "")) %>%
+  mutate(secretario_clean = chartr('áéíóú','aeiou', secretario_clean))
+
+# Agregamos identificadores únicos para ponentes y secretarios:
+total_1$id_ponente <- total_1 %>% group_indices(ponente_clean)
+total_1 <- transform(total_1, id_ponente = as.character(id_ponente))
+total_1$id_secretario <- total_1 %>% group_indices(secretario_clean)
+total_1 <- transform(total_1, id_secretario = as.character(id_secretario))
+
+# Creamos dataframe con nombres únicos de ponentes:
+ponentes <- total_1 %>%
+  select(ponente, ponente_clean, id_ponente)
+ponentes <- ponentes[!duplicated(ponentes$id_ponente), ]
+colnames(ponentes)[colnames(ponentes) == "id_ponente"] <- "id"
+ponentes <- transform(ponentes, id = as.character(id))
+
+# Creamos dataframe con nombres únicos de secretarios:
+secretarios <- total_1 %>%
+  select(secretario, secretario_clean, id_secretario)
+secretarios <- secretarios[!duplicated(secretarios$id_secretario), ]
+colnames(secretarios)[colnames(secretarios) == "id_secretario"] <- "id"
+secretarios <- transform(secretarios, id = as.character(id))
+
+# Seleccionamos columnas de datos sociodemográficos:
+socio_1 <- socio %>% 
+  select(id = id_final, name, nombres_clean)
+```
+
+
+```{r}
+# Definimos funciones:  
+calcular_tejas <- function(x, k = 4, lowercase = FALSE){
+  tokenizers::tokenize_character_shingles(x, n = k, lowercase = lowercase,
+    simplify = TRUE, strip_non_alpha = FALSE)
+}
+
+generar_hash <- function(){
+  r <- as.integer(stats::runif(1, 1, 2147483647))
+  funcion_hash <- function(tejas){
+        digest::digest2int(tejas, seed = r) 
+  }
+  funcion_hash
+}
+
+construir_firmas <- function(hashes, tejas){
+  tibble(hash_num = 1:length(hashes), 
+         firma = map_int(hashes, \(h) min(h(tejas)))
+  )
+}
+
+sim_jaccard <- \(a, b)  length(intersect(a, b)) / length(union(a, b))
+```
+
+Hacemos tejas para cada lista:
+
+```{r}
+# Tejas para nombres de ponentes:
+ponente_tejas <- ponentes %>% 
+  mutate(tejas = map(ponente_clean, ~ calcular_tejas(.x, k = 5)))
+
+# Tejas para nombres de secretarios:
+secretario_tejas <- secretarios %>% 
+  mutate(tejas = map(secretario_clean, ~ calcular_tejas(.x, k = 5)))
+
+# Tejas de datos sociodemográficos:
+socio_tejas <- socio_1 %>% 
+  mutate(tejas = map(nombres_clean, ~ calcular_tejas(.x, k = 5)))
+```
+
+Calculamos minhashes:
+
+```{r}
+# Crearemos 2 hashes por nombre:
+hashes <- map(1:2, ~ generar_hash())
+
+# Minhashes de ponentes:
+ponente_firmas <- ponente_tejas %>% 
+  mutate(firma = map(tejas, ~ construir_firmas(hashes, .x))) %>%
+  select(id, firma) %>%
+  unnest(firma) %>%
+  mutate(cubeta = paste(hash_num, firma, sep = "-")) %>%
+  select(id, cubeta)
+
+# Minhashes de secretarios:
+secretario_firmas <- secretario_tejas %>% 
+  mutate(firma = map(tejas, ~ construir_firmas(hashes, .x))) %>%
+  select(id, firma) %>%
+  unnest(firma) %>%
+  mutate(cubeta = paste(hash_num, firma, sep = "-")) %>%
+  select(id, cubeta)
+
+# Minhashes de datos sociodemográficos:
+socio_firmas <- socio_tejas |> 
+  mutate(firma = map(tejas, ~ construir_firmas(hashes, .x))) |> 
+  select(id, firma) |> 
+  unnest(firma) |> 
+  mutate(cubeta = paste(hash_num, firma, sep = "-")) |> 
+  select(id, cubeta)
+```
+
+Hacemos una unión por cubetas para obtener nuestros pares candidatos:
+
+```{r}
+# Candidatos de ponentes:
+ponente_candidatos_tbl <- inner_join(socio_firmas %>% rename(id_socio = id), 
+                                     ponente_firmas %>% rename(id_ponente = id))
+
+# Candidatos de secretarios:
+secretario_candidatos_tbl <- inner_join(socio_firmas %>% rename(id_socio = id), 
+                                     secretario_firmas %>% rename(id_secretario = id))
+```
+
+Calculamos similitud exacta para candidatos
+
+```{r}
+# Similitud para ponentes:
+ponente_candidatos_score_tbl <- ponente_candidatos_tbl %>%
+  left_join(socio_tejas %>%
+              select(id_socio = id, tejas_socio = tejas)) %>%
+  left_join(ponente_tejas %>%
+              select(id_ponente = id, tejas_ponente = tejas)) %>%
+  mutate(score = map2_dbl(tejas_socio, tejas_ponente, ~ sim_jaccard(.x, .y))) %>%
+  select(-tejas_socio, -tejas_ponente, -cubeta)
+ponente_candidatos_score_tbl <- ponente_candidatos_score_tbl %>%
+  unique()
+ponente_candidatos_score_tbl
+```
+
+```{r}
+# Similitud para secretarios:
+secretario_candidatos_score_tbl <- secretario_candidatos_tbl %>%
+  left_join(socio_tejas %>%
+              select(id_socio = id, tejas_socio = tejas)) %>%
+  left_join(secretario_tejas %>%
+              select(id_secretario = id, tejas_secretario = tejas)) %>%
+  mutate(score = map2_dbl(tejas_socio, tejas_secretario, ~ sim_jaccard(.x, .y))) %>%
+  select(-tejas_socio, -tejas_secretario, -cubeta)
+secretario_candidatos_score_tbl <- secretario_candidatos_score_tbl %>%
+  unique()
+secretario_candidatos_score_tbl
+```
+
+Proponemos puntos de corte:
+
+```{r}
+# Punto de corte para ponentes:
+ponente_candidatos_filt <- filter(ponente_candidatos_score_tbl, score > 0.6) %>%
+  left_join(socio_1 %>%
+              select(id_socio = id, name)) %>%
+  left_join(ponentes %>%
+              select(id_ponente = id, ponente)) %>%
+  arrange(-score)
+tail(ponente_candidatos_filt)
+nrow(ponentes)
+nrow(ponente_candidatos_filt)
+```
+
+```{r}
+# Punto de corte para secretarios:
+secretario_candidatos_filt <- filter(secretario_candidatos_score_tbl, score > 0.55) %>%
+  left_join(socio_1 %>%
+              select(id_socio = id, name)) %>%
+  left_join(secretarios %>%
+              select(id_secretario = id, secretario)) %>%
+  arrange(-score)
+tail(secretario_candidatos_filt)
+nrow(secretarios)
+nrow(secretario_candidatos_filt)
+```
+
+Si queremos examinar candidatos especìficos:
+
+```{r}
+# Candidatos con score de 1:
+# Nombre en lista de datos sociodemográficos:
+socio_1 %>% filter_at(vars(id), any_vars(. %in% c('AAJ_3982')))
+# Nombre de ponente:
+ponentes %>% filter_at(vars(id), any_vars(. %in% c('766')))
+```
+
+Agregamos el ID sociodemográfico a los datos y eliminamos registros nulos:
+
+```{r}
+# Agregamos ID sociodemográfico:
+total_id <- total_1 %>%
+  left_join(ponente_candidatos_filt) %>%
+  rename(id_ponente_socio = id_socio) %>%
+  select(-score, -name) %>%
+  left_join(secretario_candidatos_filt) %>%
+  rename(id_secretario_socio = id_socio) %>%
+  select(-score, -name) %>%
+  select(-ponente_clean, -secretario_clean, -id_ponente, -id_secretario) %>%
+  rename(id_ponente = id_ponente_socio, id_secretario = id_secretario_socio)
+total_id <- total_id %>%
+  unique()
+
+#Agregamos identificador de repetición:
+total_id <- total_id %>%
+  mutate(id_ponente_rep = case_when(grepl(".*_REP", ponente_rep) & 
+                                      id_ponente != is.na(id_ponente) ~ paste0(id_ponente, "_REP"),
+                                    TRUE ~ id_ponente)) %>%
+  mutate(id_secretario_rep = case_when(grepl(".*_REP", secretario_rep) & 
+                                         id_secretario != is.na(id_secretario) ~ paste0(id_secretario, "_REP"),
+                                    TRUE ~ id_secretario))
+
+# Eliminamos registros sin ID sociodemográfico:
+total_id_nona <- total_id %>% 
+  drop_na() %>%
+  arrange(id_tesis, X._reiteracion)
+```
+
+Comparamos número de tesis totales contra las tesis de las que tenemos datos de ponentes/secretarios:
+
+```{r}
+# Número de tesis totales:
+length(unique(total_id$id_tesis))
+# Número de tesis de las que tenemos datos de ponentes/secretarios:
+length(unique(total_id_nona$id_tesis))
+```
+
+
+
+
+Si eliminamos reiteraciones a sí mismos:
+
+```{r, echo=FALSE}
+unico <- total %>% select(id_tesis, ponente, secretario)
+unico <- unico %>% distinct(id_tesis, ponente, .keep_all = TRUE)
+unico <- unico %>% distinct(id_tesis, secretario, .keep_all = TRUE)
+dim(unico)
+```
+
+Construimos redes de ponentes, secretarios y de ponentes-secretarios:
+
+```{r, echo=FALSE}
+# Red parcial de ponentes-secretarios:
+# Extraemos las primeras 50 filas para prueba
+parcial <- total[1:50, 7:8]
+# Creamos nodos:
+nodos <- setNames(data.frame(c(parcial$ponente, parcial$secretario)), "nodos")
+# Agregamos identificador único para los nodos:
+nodos$id <- nodos %>% group_indices(nodos)
+# Creamos aristas:
+aristas <- setNames(data.frame(nodos$id[1:50]), "from")
+aristas <- aristas %>% mutate(to = nodos$id[51:100])
+
+red1 <- tbl_graph(nodes = nodos, 
+                  edges = aristas, 
+                  directed = TRUE)
+```
+
+Graficamos redes:
+
+```{r, echo=FALSE}
+#Red de ponentes-secretarios:
+red1 %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'fr', niter = 2000) +
+  geom_edge_link() + 
+  geom_node_point() +
+  theme_graph()
+  # Para agregar los nombres:
+  #geom_node_text(aes(label = nodos)) 
+```
