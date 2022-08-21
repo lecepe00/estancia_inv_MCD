@@ -1,6 +1,7 @@
 data/*.txt
 data/*.csv
 data/.DS_Store
+data/sociodemo
 output/*.csv
 output/*.pkl
 output/.DS_Store
