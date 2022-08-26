@@ -17,7 +17,7 @@ library(tidyverse)
 library(tidygraph)
 library(ggraph)
 library(igraphdata)
-total <- read.csv("../output/tesis_juris_rep.csv")
+total <- read.csv("../output/tesis_secr_expand_rep.csv")
 socio <- read.csv("../data/sociodemo/X1_Sociodemograficos_1.csv")
 dim(total)
 dim(socio)
@@ -35,7 +35,8 @@ Hacemos relación de nombres con IDs:
 ```{r}
 set.seed(2022)
 # Primero limpiamos nombres:
-total_1 <- total %>% select(id_tesis, X._reiteracion, instancia, epoca, materia, fecha, ponente, secretario, ponente_rep, secretario_rep) %>%
+total_1 <- total %>% select(id_tesis, X._reiteracion, instancia, epoca, materia, fecha, ponente, 
+                              S1, S2, S3, S4, S5, S6, ponente_rep) %>%
   mutate(id_tesis = as.character(id_tesis)) %>%
   
   mutate(ponente_clean = str_to_lower(ponente)) %>%
@@ -43,16 +44,39 @@ total_1 <- total %>% select(id_tesis, X._reiteracion, instancia, epoca, materia,
   mutate(ponente_clean = str_replace_all(ponente_clean, "[[:punct:]]", "")) %>%
   mutate(ponente_clean = chartr('áéíóú','aeiou', ponente_clean)) %>%
   
-  mutate(secretario_clean = str_to_lower(secretario))  %>%
-  mutate(secretario_clean = str_replace_all(secretario_clean, " ", "")) %>%
-  mutate(secretario_clean = str_replace_all(secretario_clean, "[[:punct:]]", "")) %>%
-  mutate(secretario_clean = chartr('áéíóú','aeiou', secretario_clean))
+  mutate(S1_clean = str_to_lower(S1))  %>%
+  mutate(S1_clean = str_replace_all(S1_clean, " ", "")) %>%
+  mutate(S1_clean = str_replace_all(S1_clean, "[[:punct:]]", "")) %>%
+  mutate(S1_clean = chartr('áéíóú','aeiou', S1_clean)) %>% 
+  
+  mutate(S2_clean = str_to_lower(S2))  %>%
+  mutate(S2_clean = str_replace_all(S2_clean, " ", "")) %>%
+  mutate(S2_clean = str_replace_all(S2_clean, "[[:punct:]]", "")) %>%
+  mutate(S2_clean = chartr('áéíóú','aeiou', S2_clean)) %>% 
+  
+  mutate(S3_clean = str_to_lower(S3))  %>%
+  mutate(S3_clean = str_replace_all(S3_clean, " ", "")) %>%
+  mutate(S3_clean = str_replace_all(S3_clean, "[[:punct:]]", "")) %>%
+  mutate(S3_clean = chartr('áéíóú','aeiou', S3_clean)) %>% 
+  
+  mutate(S4_clean = str_to_lower(S4))  %>%
+  mutate(S4_clean = str_replace_all(S4_clean, " ", "")) %>%
+  mutate(S4_clean = str_replace_all(S4_clean, "[[:punct:]]", "")) %>%
+  mutate(S4_clean = chartr('áéíóú','aeiou', S4_clean)) %>% 
+  
+  mutate(S5_clean = str_to_lower(S5))  %>%
+  mutate(S5_clean = str_replace_all(S5_clean, " ", "")) %>%
+  mutate(S5_clean = str_replace_all(S5_clean, "[[:punct:]]", "")) %>%
+  mutate(S5_clean = chartr('áéíóú','aeiou', S5_clean)) %>% 
+  
+  mutate(S6_clean = str_to_lower(S6))  %>%
+  mutate(S6_clean = str_replace_all(S6_clean, " ", "")) %>%
+  mutate(S6_clean = str_replace_all(S6_clean, "[[:punct:]]", "")) %>%
+  mutate(S6_clean = chartr('áéíóú','aeiou', S6_clean)) 
 
-# Agregamos identificadores únicos para ponentes y secretarios:
+# Agregamos identificadores únicos para ponentes:
 total_1$id_ponente <- total_1 %>% group_indices(ponente_clean)
 total_1 <- transform(total_1, id_ponente = as.character(id_ponente))
-total_1$id_secretario <- total_1 %>% group_indices(secretario_clean)
-total_1 <- transform(total_1, id_secretario = as.character(id_secretario))
 
 # Creamos dataframe con nombres únicos de ponentes:
 ponentes <- total_1 %>%
@@ -61,11 +85,13 @@ ponentes <- ponentes[!duplicated(ponentes$id_ponente), ]
 colnames(ponentes)[colnames(ponentes) == "id_ponente"] <- "id"
 ponentes <- transform(ponentes, id = as.character(id))
 
-# Creamos dataframe con nombres únicos de secretarios:
-secretarios <- total_1 %>%
-  select(secretario, secretario_clean, id_secretario)
-secretarios <- secretarios[!duplicated(secretarios$id_secretario), ]
-colnames(secretarios)[colnames(secretarios) == "id_secretario"] <- "id"
+# Creamos dataframe para nombres únicos de secretarios:
+secretarios <- setNames(data.frame(c(total_1$S1, total_1$S2, total_1$S3, 
+                                      total_1$S4, total_1$S5, total_1$S6)), "secretario")
+secretarios$secretario_clean <- c(total_1$S1_clean, total_1$S2_clean, total_1$S3_clean, 
+                                   total_1$S4_clean, total_1$S5_clean, total_1$S6_clean)
+secretarios <- secretarios[!duplicated(secretarios$secretario_clean), ]
+secretarios$id <- seq.int(nrow(secretarios)) 
 secretarios <- transform(secretarios, id = as.character(id))
 
 # Seleccionamos columnas de datos sociodemográficos:
@@ -73,6 +99,7 @@ socio_1 <- socio %>%
   select(id = id_final, name, nombres_clean)
 ```
 
+Definimos funciones:
 
 ```{r}
 # Definimos funciones:  
@@ -228,31 +255,69 @@ ponentes %>% filter_at(vars(id), any_vars(. %in% c('766')))
 Agregamos el ID sociodemográfico a los datos y eliminamos registros nulos:
 
 ```{r}
-# Agregamos ID sociodemográfico:
-total_id <- total_1 %>%
+# Creamos dataframe con ID sociodemográfico y nombres limpios para secretarios:
+secretarios_id <- secretarios %>%
+  left_join(secretario_candidatos_filt) %>%
+  select(-id_secretario, -score, -name)
+
+# Agregamos ID sociodemográfico a ponentes:
+total_id <- total_1 %>% 
   left_join(ponente_candidatos_filt) %>%
   rename(id_ponente_socio = id_socio) %>%
   select(-score, -name) %>%
-  left_join(secretario_candidatos_filt) %>%
-  rename(id_secretario_socio = id_socio) %>%
-  select(-score, -name) %>%
-  select(-ponente_clean, -secretario_clean, -id_ponente, -id_secretario) %>%
-  rename(id_ponente = id_ponente_socio, id_secretario = id_secretario_socio)
+  unique()
+
+# Agregamos ID sociodemográfico a secretarios:
+total_id <- total_id %>%
+  #S1:
+  rename(secretario_clean = S1_clean) %>%
+  left_join(secretarios_id) %>%
+  select(-secretario, -id) %>%
+  rename(S1_clean = secretario_clean, id_S1_socio = id_socio) %>%
+  unique() %>%
+  #S2:
+  rename(secretario_clean = S2_clean) %>%
+  left_join(secretarios_id) %>%
+  select(-secretario, -id) %>%
+  rename(S2_clean = secretario_clean, id_S2_socio = id_socio) %>%
+  unique() %>%
+  #S3:
+  rename(secretario_clean = S3_clean) %>%
+  left_join(secretarios_id) %>%
+  select(-secretario, -id) %>%
+  rename(S3_clean = secretario_clean, id_S3_socio = id_socio) %>%  
+  unique() %>%
+  #S4:
+  rename(secretario_clean = S4_clean) %>%
+  left_join(secretarios_id) %>%
+  select(-secretario, -id) %>%
+  rename(S4_clean = secretario_clean, id_S4_socio = id_socio) %>% 
+  unique() %>%
+  #S5:
+  rename(secretario_clean = S5_clean) %>%
+  left_join(secretarios_id) %>%
+  select(-secretario, -id) %>%
+  rename(S5_clean = secretario_clean, id_S5_socio = id_socio) %>% 
+  unique() %>%
+  #S6:
+  rename(secretario_clean = S6_clean) %>%
+  left_join(secretarios_id) %>%
+  select(-secretario, -id) %>%
+  rename(S6_clean = secretario_clean, id_S6_socio = id_socio) %>%
+  unique()
 total_id <- total_id %>%
   unique()
 
-#Agregamos identificador de repetición:
+#Agregamos identificador de repetición a ponentes:
 total_id <- total_id %>%
   mutate(id_ponente_rep = case_when(grepl(".*_REP", ponente_rep) & 
                                       id_ponente != is.na(id_ponente) ~ paste0(id_ponente, "_REP"),
-                                    TRUE ~ id_ponente)) %>%
-  mutate(id_secretario_rep = case_when(grepl(".*_REP", secretario_rep) & 
-                                         id_secretario != is.na(id_secretario) ~ paste0(id_secretario, "_REP"),
-                                    TRUE ~ id_secretario))
+                                    TRUE ~ id_ponente))
 
-# Eliminamos registros sin ID sociodemográfico:
+# Eliminamos registros sin ponente:
 total_id_nona <- total_id %>% 
-  drop_na() %>%
+  drop_na(ponente) %>%
+#  drop_na()
   arrange(id_tesis, X._reiteracion)
 ```
 
