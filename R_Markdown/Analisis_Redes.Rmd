@@ -310,9 +310,10 @@ total_id <- total_id %>%
 
 #Agregamos identificador de repetición a ponentes:
 total_id <- total_id %>%
-  mutate(id_ponente_rep = case_when(grepl(".*_REP", ponente_rep) & 
-                                      id_ponente != is.na(id_ponente) ~ paste0(id_ponente, "_REP"),
-                                    TRUE ~ id_ponente))
+  mutate(id_ponente_socio_rep = case_when(grepl(".*_REP", ponente_rep) & 
+                                      id_ponente_socio != is.na(id_ponente_socio) 
+                                      ~ paste0(id_ponente_socio, "_REP"),
+                                    TRUE ~ id_ponente_socio))
 
 # Eliminamos registros sin ponente:
 total_id_nona <- total_id %>% 
