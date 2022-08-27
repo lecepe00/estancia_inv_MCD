@@ -5,7 +5,7 @@ date: '2022-08-16'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
 ## Análisis de Redes - Tesis de Jurisprudencia
@@ -34,6 +34,7 @@ Hacemos relación de nombres con IDs:
 
 ```{r}
 set.seed(2022)
+
 # Primero limpiamos nombres:
 total_1 <- total %>% select(id_tesis, X._reiteracion, instancia, epoca, materia, fecha, ponente, 
                               S1, S2, S3, S4, S5, S6, ponente_rep) %>%
@@ -102,7 +103,6 @@ socio_1 <- socio %>%
 Definimos funciones:
 
 ```{r}
-# Definimos funciones:  
 calcular_tejas <- function(x, k = 4, lowercase = FALSE){
   tokenizers::tokenize_character_shingles(x, n = k, lowercase = lowercase,
     simplify = TRUE, strip_non_alpha = FALSE)
@@ -164,11 +164,11 @@ secretario_firmas <- secretario_tejas %>%
   select(id, cubeta)
 
 # Minhashes de datos sociodemográficos:
-socio_firmas <- socio_tejas |> 
-  mutate(firma = map(tejas, ~ construir_firmas(hashes, .x))) |> 
-  select(id, firma) |> 
-  unnest(firma) |> 
-  mutate(cubeta = paste(hash_num, firma, sep = "-")) |> 
+socio_firmas <- socio_tejas %>%
+  mutate(firma = map(tejas, ~ construir_firmas(hashes, .x))) %>%
+  select(id, firma) %>%
+  unnest(firma) %>%
+  mutate(cubeta = paste(hash_num, firma, sep = "-")) %>%
   select(id, cubeta)
 ```
 
@@ -195,8 +195,10 @@ ponente_candidatos_score_tbl <- ponente_candidatos_tbl %>%
               select(id_ponente = id, tejas_ponente = tejas)) %>%
   mutate(score = map2_dbl(tejas_socio, tejas_ponente, ~ sim_jaccard(.x, .y))) %>%
   select(-tejas_socio, -tejas_ponente, -cubeta)
+
 ponente_candidatos_score_tbl <- ponente_candidatos_score_tbl %>%
   unique()
+
 ponente_candidatos_score_tbl
 ```
 
@@ -209,8 +211,10 @@ secretario_candidatos_score_tbl <- secretario_candidatos_tbl %>%
               select(id_secretario = id, tejas_secretario = tejas)) %>%
   mutate(score = map2_dbl(tejas_socio, tejas_secretario, ~ sim_jaccard(.x, .y))) %>%
   select(-tejas_socio, -tejas_secretario, -cubeta)
+
 secretario_candidatos_score_tbl <- secretario_candidatos_score_tbl %>%
   unique()
+
 secretario_candidatos_score_tbl
 ```
 
@@ -224,6 +228,7 @@ ponente_candidatos_filt <- filter(ponente_candidatos_score_tbl, score > 0.6) %>%
   left_join(ponentes %>%
               select(id_ponente = id, ponente)) %>%
   arrange(-score)
+
 tail(ponente_candidatos_filt)
 nrow(ponentes)
 nrow(ponente_candidatos_filt)
@@ -237,17 +242,20 @@ secretario_candidatos_filt <- filter(secretario_candidatos_score_tbl, score > 0.
   left_join(secretarios %>%
               select(id_secretario = id, secretario)) %>%
   arrange(-score)
+
 tail(secretario_candidatos_filt)
 nrow(secretarios)
 nrow(secretario_candidatos_filt)
 ```
 
-Si queremos examinar candidatos especìficos:
+Si queremos examinar candidatos específicos:
 
 ```{r}
 # Candidatos con score de 1:
+
 # Nombre en lista de datos sociodemográficos:
 socio_1 %>% filter_at(vars(id), any_vars(. %in% c('AAJ_3982')))
+
 # Nombre de ponente:
 ponentes %>% filter_at(vars(id), any_vars(. %in% c('766')))
 ```
@@ -305,10 +313,11 @@ total_id <- total_id %>%
   select(-secretario, -id) %>%
   rename(S6_clean = secretario_clean, id_S6_socio = id_socio) %>%
   unique()
+
 total_id <- total_id %>%
   unique()
 
-#Agregamos identificador de repetición a ponentes:
+# Agregamos identificador de repetición a ponentes:
 total_id <- total_id %>%
   mutate(id_ponente_socio_rep = case_when(grepl(".*_REP", ponente_rep) & 
                                       id_ponente_socio != is.na(id_ponente_socio) 
@@ -318,7 +327,6 @@ total_id <- total_id %>%
 # Eliminamos registros sin ponente:
 total_id_nona <- total_id %>% 
   drop_na(ponente) %>%
-#  drop_na()
   arrange(id_tesis, X._reiteracion)
 ```
 
@@ -327,51 +335,194 @@ Comparamos número de tesis totales contra las tesis de las que tenemos datos de
 ```{r}
 # Número de tesis totales:
 length(unique(total_id$id_tesis))
+
 # Número de tesis de las que tenemos datos de ponentes/secretarios:
 length(unique(total_id_nona$id_tesis))
 ```
 
-
-
-
 Si eliminamos reiteraciones a sí mismos:
 
-```{r, echo=FALSE}
+```{r}
 unico <- total %>% select(id_tesis, ponente, secretario)
 unico <- unico %>% distinct(id_tesis, ponente, .keep_all = TRUE)
 unico <- unico %>% distinct(id_tesis, secretario, .keep_all = TRUE)
+
 dim(unico)
 ```
 
-Construimos redes de ponentes, secretarios y de ponentes-secretarios:
+**Red Ponentes-Secretarios**
 
-```{r, echo=FALSE}
-# Red parcial de ponentes-secretarios:
-# Extraemos las primeras 50 filas para prueba
-parcial <- total[1:50, 7:8]
+```{r}
+
+#Cremamos df con info necesaria:
+pon_sec_df <- total_id_nona %>% 
+  pivot_longer(cols = names(total_id_nona)[24:29],
+                    values_to = "id_secretario_socio") %>% 
+  select(id_ponente_socio_rep,id_secretario_socio,epoca) %>% 
+  drop_na(id_secretario_socio) %>% 
+  drop_na(id_ponente_socio_rep) 
+
+# Agregamos identificador único:
+pon_sec_df$from <- pon_sec_df %>% group_indices(id_ponente_socio_rep)
+pon_sec_df$to <- pon_sec_df %>% group_indices(id_secretario_socio)
+
 # Creamos nodos:
-nodos <- setNames(data.frame(c(parcial$ponente, parcial$secretario)), "nodos")
-# Agregamos identificador único para los nodos:
-nodos$id <- nodos %>% group_indices(nodos)
-# Creamos aristas:
-aristas <- setNames(data.frame(nodos$id[1:50]), "from")
-aristas <- aristas %>% mutate(to = nodos$id[51:100])
+nodos_pon_sec <- pon_sec_df[, c("id_ponente_socio_rep","from","epoca")]
+colnames(nodos_pon_sec) <- c("nodos", "id","epoca")
 
-red1 <- tbl_graph(nodes = nodos, 
-                  edges = aristas, 
+# Creamos aristas:
+aristas_pon_sec <- pon_sec_df[, c("from","to")]
+
+# Creamos red:
+red_pon_sec <- tbl_graph(nodes = nodos_pon_sec, 
+                  edges = aristas_pon_sec, 
                   directed = TRUE)
+
+# Agregamos medidas de intermediación y centralidad
+red_pon_sec <- red_pon_sec %>% 
+  activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank())
+
+red_pon_sec
 ```
 
-Graficamos redes:
+**Red Ponentes-Ponentes-1, usando todos los registros**
 
-```{r, echo=FALSE}
-#Red de ponentes-secretarios:
-red1 %>%
+```{r}
+#Cremamos df con info necesaria:
+pon_pon1_df <- total_id_nona %>%
+  select(id_tesis,X._reiteracion,epoca,ponente_rep)
+
+# Agregamos identificador único:
+pon_pon1_df$id_ponente <- pon_pon1_df %>% group_indices(ponente_rep)
+
+# Hacemos combinatorias de 2 ponentes por tesis
+comb_pon_pon1 <- pon_pon1_df %>%
+  group_by(id_tesis) %>%
+  summarise(comb = t(combn(id_ponente, 2)))
+comb_pon_pon1 <- data.frame(id_tesis=comb_pon_pon1[1], from=comb_pon_pon1$comb[,1], to=comb_pon_pon1$comb[,2])
+
+# Agregamos Época de acuerdo al dataframe original
+comb_pon_pon1$epoca <- pon_pon1_df[match(comb_pon_pon1$id_tesis,pon_pon1_df$id_tesis),"epoca"]
+
+# Creamos nodos:
+nodos_pon_pon1 <- pon_pon1_df[, c("id_ponente","epoca")]
+  
+# Creamos aristas:
+aristas_pon_pon1 <- comb_pon_pon1 %>%
+  select(to,from)
+
+# Creamos red:
+red_pon_pon1 <- tbl_graph(nodes = nodos_pon_pon1, 
+                  edges = aristas_pon_pon1, 
+                  directed = TRUE)
+
+# Agregamos medidas de intermediación y centralidad
+red_pon_pon1 <- red_pon_pon1 %>% 
   activate(nodes) %>% 
-  ggraph(layout = 'fr', niter = 2000) +
-  geom_edge_link() + 
-  geom_node_point() +
-  theme_graph()
-  # Para agregar los nombres:
-  #geom_node_text(aes(label = nodos)) 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank())
+
+red_pon_pon1
+```
+
+**Red Ponentes-Ponentes-2, usando sólo tesis con ID sociodemográfico para TODOS sus ponentes**
+
+```{r}
+#Cremamos df con info necesaria:
+pon_pon2_df <- total_id_nona %>%
+  group_by(id_tesis) %>%
+  filter(!any(id_ponente_socio_rep == "NA")) %>%
+  select(id_tesis,X._reiteracion,epoca,id_ponente_socio_rep)
+
+# Agregamos identificador único:
+pon_pon2_df$id_ponente <- pon_pon2_df %>% group_indices(id_ponente_socio_rep)
+
+# Hacemos combinatorias de 2 ponentes por tesis
+comb_pon_pon2 <- pon_pon2_df %>%
+  group_by(id_tesis) %>%
+  summarise(comb = t(combn(id_ponente, 2)))
+comb_pon_pon2 <- data.frame(id_tesis=comb_pon_pon2[1], from=comb_pon_pon2$comb[,1], to=comb_pon_pon2$comb[,2])
+
+# Agregamos Época de acuerdo al dataframe original
+comb_pon_pon2$epoca <- pon_pon2_df[match(comb_pon_pon2$id_tesis,pon_pon2_df$id_tesis),"epoca"]
+
+# Creamos nodos:
+nodos_pon_pon2 <- pon_pon2_df[, c("id_ponente","id_ponente_socio_rep","epoca")]
+  
+# Creamos aristas:
+aristas_pon_pon2 <- comb_pon_pon2 %>%
+  select(to,from)
+
+# Creamos red:
+red_pon_pon2 <- tbl_graph(nodes = nodos_pon_pon2, 
+                  edges = aristas_pon_pon2, 
+                  directed = TRUE)
+
+# Agregamos medidas de intermediación y centralidad
+red_pon_pon2 <- red_pon_pon2 %>% 
+  activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank())
+
+red_pon_pon2
+```
+
+Creamos funciones para graficar redes:
+
+```{r,}
+
+graficar_red <- function(red,layout_red,tamaño,color,etiqueta,title){
+  red %>%
+    activate(nodes) %>% 
+    ggraph(layout = layout_red) + 
+    geom_edge_link(colour = "gray", arrow = arrow(length = unit(2, 'mm'))) + 
+    geom_node_point(aes(size = (!!as.name(tamaño)), colour = (!!as.name(color))), alpha = 0.7) +
+    geom_node_text(aes(label = (!!as.name(etiqueta))), repel = T, size = 2)  +
+    theme_graph(base_family = "sans") + 
+    ggtitle(title)
+}
+
+# Filtrando por alguna columna
+graficar_red_filtro <- function(red,filtro,filtro_param,layout_red,tamaño,color,etiqueta,title){
+  red %>%
+    activate(nodes) %>% 
+    filter((!!as.name(filtro)) == filtro_param) %>%
+    ggraph(layout = layout_red) + 
+    geom_edge_link(colour = "gray", arrow = arrow(length = unit(2, 'mm'))) + 
+    geom_node_point(aes(size = (!!as.name(tamaño)), colour = (!!as.name(color))), alpha = 0.7) +
+    geom_node_text(aes(label = (!!as.name(etiqueta))), repel = T, size = 2)  +
+    theme_graph(base_family = "sans") + 
+    ggtitle(title)
+}
+```
+
+Visualizamos red
+
+```{r, fig.width = 8, fig.height=6}
+graficar_red_filtro(red_pon_sec,'epoca','Décima Época','drl','intermediacion','central_pagerank','nodos','Pon-Sec: Décima Época')
+```
+
+```{r, fig.width = 8, fig.height=6}
+graficar_red(red_pon_pon2,'drl','intermediacion','central_pagerank','id_ponente_socio_rep','Pon-Pon2 (sólo con id socio)')
+```
+
+```{r, fig.width = 8, fig.height=6}
+red_pon_pon2 %>%
+  activate(nodes) %>% 
+  filter(intermediacion >= 10000) %>%
+  #filter(central_pagerank >= 0.0004) %>%
+  ggraph(layout = 'drl') + 
+  geom_edge_link(colour="gray", arrow = arrow(length = unit(2, 'mm'))) + 
+  geom_node_point(aes(size= intermediacion, colour=central_pagerank)) +
+  geom_node_text(aes(label = id_ponente_socio_rep), repel=T, size=2) +
+  theme_graph(base_family="sans") + 
+  ggtitle('Pon-Pon2 (sólo con id socio) filtrado')
+```
+
+```{r, fig.width = 8, fig.height=6}
+```
+
+```{r, fig.width = 8, fig.height=6}
 ```
