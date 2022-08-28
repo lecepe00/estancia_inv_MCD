@@ -1,0 +1,142 @@
+---
+title: "Modelos de Clasificación"
+output: html_document
+date: '2022-08-27'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Modelos de Regresión:  Tesis de Jurisprudencia
+
+Comenzamos cargando librerías y los datos correspondientes:
+(NOTA:  Hay que ejecutar el notebook "Analisis_Redes.Rmd" previamente.)
+
+```{r}
+library(tidyverse)
+library(tidygraph)
+library(nnet)
+```
+
+Cargamos y limpiamos los datos con los que trabajaremos:
+
+```{r}
+# Cargamos datos:
+total_r <- total_id %>%
+  select(instancia, epoca, id_ponente_socio, id_S1_socio, id_S2_socio, 
+         id_S3_socio, id_S4_socio, id_S5_socio, materia)
+
+# Ordenamos alfabéticamente las materias:
+total_r <- total_r %>%
+  rowwise() %>%
+  mutate(materias_ord = paste(sort(unlist(strsplit(materia, ", ", fixed = TRUE))),
+                              collapse = ", ")) %>%
+  select(-materia) %>%
+  rename(materia = materias_ord)
+
+# Creamos columna única con identificadores sociodemográficos de secretarios:
+secretarios_reg <- total_r %>%
+  pivot_longer(cols = names(total_r)[4:8],
+               values_to = "id_final") %>%
+  select(instancia, epoca, id_final, materia)
+
+# Eliminamos columnas sobrantes:
+total_r <- total_r %>%
+  select(-c(4:8)) %>%
+  rename(id_final = id_ponente_socio) 
+
+# Unimos dataframes de ponentes y secretarios, y eliminamos nulos:
+total_r <-  total_r %>%
+  rbind(total_r, secretarios_reg) %>%
+  drop_na()
+
+# Agregamos datos sociodemográficos:
+total_r <- total_r %>%
+  left_join(socio) %>%
+  select(c(1:3, 10, 11, 15, 18, 4)) %>%
+  drop_na() %>%
+  rename(id_socio = id_final, genero = gender, anio = year_of_birth, edo = state_of_birth, escuela = college)
+
+# Agregamos columna con generaciones:
+total_r <- total_r %>%
+  mutate(generacion = case_when(anio >= 1912 & anio <= 1921 ~ "Depresion",
+                                anio >= 1922 & anio <= 1927 ~ "Segunda GM",
+                                anio >= 1928 & anio <= 1945 ~ "Post Guerra",
+                                anio >= 1946 & anio <= 1954 ~ "Boomers I",
+                                anio >= 1955 & anio <= 1965 ~ "Boomers II",
+                                anio >= 1966 & anio <= 1976 ~ "Generacion X",
+                                TRUE ~ "Previos")) %>%
+  relocate(generacion, .before = edo)
+
+# Creamos dataframes con materias únicas:
+total_r_mat <- total_r %>%
+  filter(!grepl(".*,.*", materia))
+```
+
+Realizamos regresión logística multinomial:
+
+```{r}
+modelo <- multinom(materia ~ instancia + epoca + genero + generacion + edo + escuela, 
+              data = total_r_mat)
+#summary(modelo)
+```
+
+Determinamos qué coeficientes son relevantes:
+
+```{r}
+# Calculamos la puntuación Z para cada coeficiente: 
+# (Esta celda tarda mucho en correr)
+z_stats <- summary(modelo)$coefficients/
+  summary(modelo)$standard.errors
+```
+
+```{r}
+# Convertimos a valores P:
+p_values <- (1 - pnorm(abs(z_stats)))*2
+
+# Mostramos los valores P en un dataframe:
+pval <- data.frame(t(p_values))
+```
+
+```{r}
+# Calculamos cambio en proporciones para coeficientes:
+# (Esta celda también tarda mucho en correr)
+odds_ratios <- exp(summary(modelo)$coefficients)
+ratios <- data.frame(t(odds_ratios))
+```
+
+Vemos coeficientes más relevantes para cada materia:
+
+```{r}
+# Coeficientes más relevantes para materia Civil:
+ratios %>%
+  arrange(-Civil) %>%
+  select(Civil) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Común:
+ratios %>%
+  arrange(-Común) %>%
+  select(Común) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Constitucional:
+ratios %>%
+  arrange(-Constitucional) %>%
+  select(Constitucional) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Laboral:
+ratios %>%
+  arrange(-Laboral) %>%
+  select(Laboral) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Penal:
+ratios %>%
+  arrange(-Penal) %>%
+  select(Penal) %>%
+  head(n = 10L)
+```
+
