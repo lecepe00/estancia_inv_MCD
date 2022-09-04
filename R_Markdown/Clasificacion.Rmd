@@ -8,15 +8,18 @@ date: '2022-08-27'
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Modelos de Regresión:  Tesis de Jurisprudencia
+# Modelos de Regresión:  Clasificación de materias
 
 Comenzamos cargando librerías y los datos correspondientes:
-(NOTA:  Hay que ejecutar el notebook "Analisis_Redes.Rmd" previamente.)
+(NOTA:  Hay que ejecutar el notebook "Analisis_Redes.Rmd" previamente para generar dataframes de tesis y datos sociodemográficos.)
 
 ```{r}
 library(tidyverse)
 library(tidygraph)
 library(nnet)
+library(caret)
+library(pROC)
+library(randomForest)
 ```
 
 Cargamos y limpiamos los datos con los que trabajaremos:
@@ -72,71 +75,766 @@ total_r <- total_r %>%
 # Creamos dataframes con materias únicas:
 total_r_mat <- total_r %>%
   filter(!grepl(".*,.*", materia))
+
+# Creamos dataframe con todas las materias (separadas):
+total_r_all_mat <- total_r %>%
+  separate_rows(materia, sep = ", ")
+
+# Separamos en datos de entrenamiento y prueba:
+set.seed(2022)
+# Dataframe con materias únicas:
+sample_mat <- sample(c(TRUE, FALSE), nrow(total_r_mat), replace=TRUE, prob=c(0.8,0.2))
+total_r_mat_train <- total_r_mat[sample_mat, ] %>%
+  select(-id_socio, -anio)
+total_r_mat_test <- total_r_mat[!sample_mat, ] %>%
+  select(-id_socio, -anio)
+# Dataframe con materias únicas y sólo con datos sociodemográficos:
+total_r_mat_train_socio <- total_r_mat[sample_mat, ] %>%
+  select(-id_socio, -anio, -instancia, -epoca)
+total_r_mat_test_socio <- total_r_mat[!sample_mat, ] %>%
+  select(-id_socio, -anio, -instancia, -epoca)
+
+# Dataframe con todas las materias (separadas):
+sample_all_mat <- sample(c(TRUE, FALSE), nrow(total_r_all_mat), replace=TRUE, prob=c(0.8,0.2))
+total_r_all_mat_train <- total_r_all_mat[sample_all_mat, ] %>%
+  select(-id_socio, -anio)
+total_r_all_mat_test <- total_r_all_mat[!sample_all_mat, ] %>%
+  select(-id_socio, -anio)
+# Dataframe con todas las materias (separadas) y sólo con datos sociodemográficos:
+sample_all_mat <- sample(c(TRUE, FALSE), nrow(total_r_all_mat), replace=TRUE, prob=c(0.8,0.2))
+total_r_all_mat_train_socio <- total_r_all_mat[sample_all_mat, ] %>%
+  select(-id_socio, -anio, -instancia, -epoca)
+total_r_all_mat_test_socio <- total_r_all_mat[!sample_all_mat, ] %>%
+  select(-id_socio, -anio, -instancia, -epoca)
 ```
 
 Realizamos regresión logística multinomial:
 
 ```{r}
-modelo <- multinom(materia ~ instancia + epoca + genero + generacion + edo + escuela, 
-              data = total_r_mat)
-#summary(modelo)
+# (Tarda en generar los modelos)
+
+# Primer modelo:  Clasificación de materias considerando sólo tesis con materia única
+# Definimos la materia "Común" como la referencia:
+total_r_mat_train$materia <- relevel(factor(total_r_mat_train$materia), ref = "Común")
+# Generamos el modelo:
+modelo_1 <- multinom(materia ~ instancia + epoca + genero + generacion + edo + escuela, 
+              data = total_r_mat_train, maxit = 500)
+
+# Segundo modelo:  Clasificación de materias considerando sólo tesis con materia única, y sólo datos sociodemográficos
+# Definimos la materia "Común" como la referencia:
+total_r_mat_train_socio$materia <- relevel(factor(total_r_mat_train_socio$materia), ref = "Común")
+# Generamos el modelo:
+modelo_2 <- multinom(materia ~ genero + generacion + edo + escuela, 
+              data = total_r_mat_train_socio, maxit = 500)
+
+# Tercer modelo:  Clasificación de materias considerando todas las materias
+# Definimos la materia "Común" como la referencia:
+total_r_all_mat_train$materia <- relevel(factor(total_r_all_mat_train$materia), ref = "Común")
+# Generamos el modelo:
+modelo_3 <- multinom(materia ~ instancia + epoca + genero + generacion + edo + escuela, 
+              data = total_r_all_mat_train, maxit = 500)
+
+# Cuarto modelo:  Clasificación de materias considerando todas las materias, y sólo datos sociodemográficos
+# Definimos la materia "Común" como la referencia:
+total_r_all_mat_train_socio$materia <- relevel(factor(total_r_all_mat_train_socio$materia), ref = "Común")
+# Generamos el modelo:
+modelo_4 <- multinom(materia ~ genero + generacion + edo + escuela, 
+              data = total_r_all_mat_train_socio, maxit = 500)
 ```
 
 Determinamos qué coeficientes son relevantes:
 
 ```{r}
 # Calculamos la puntuación Z para cada coeficiente: 
-# (Esta celda tarda mucho en correr)
-z_stats <- summary(modelo)$coefficients/
-  summary(modelo)$standard.errors
+# (Esta celda tarda MUCHO en correr - aprox 40 mins)
+# Primer modelo con materias únicas:
+z_stats_1 <- summary(modelo_1)$coefficients/
+  summary(modelo_1)$standard.errors
+
+# Segundo modelo con materias únicas y sólo datos sociodemográficos:
+z_stats_2 <- summary(modelo_2)$coefficients/
+  summary(modelo_2)$standard.errors
+
+# Tercer modelo con todas las materias:
+z_stats_3 <- summary(modelo_3)$coefficients/
+  summary(modelo_3)$standard.errors
+
+# Cuarto modelo con todas las materias y sólo datos sociodemográficos:
+z_stats_4 <- summary(modelo_4)$coefficients/
+  summary(modelo_4)$standard.errors
 ```
 
 ```{r}
 # Convertimos a valores P:
-p_values <- (1 - pnorm(abs(z_stats)))*2
+# Modelo con materias únicas:
+p_values_1 <- (1 - pnorm(abs(z_stats_1)))*2
+# Guardamos los valores P en un dataframe:
+pval_1 <- data.frame(t(p_values_1))
 
-# Mostramos los valores P en un dataframe:
-pval <- data.frame(t(p_values))
+# Modelo con materias únicas y sólo datos sociodemográficos:
+p_values_2 <- (1 - pnorm(abs(z_stats_2)))*2
+# Guardamos los valores P en un dataframe:
+pval_2 <- data.frame(t(p_values_2))
+
+# Modelo con todas las materias:
+p_values_3 <- (1 - pnorm(abs(z_stats_3)))*2
+# Guardamos los valores P en un dataframe:
+pval_3 <- data.frame(t(p_values_3))
+
+# Modelo con todas las materias y sólo datos sociodemográficos:
+p_values_4 <- (1 - pnorm(abs(z_stats_4)))*2
+# Guardamos los valores P en un dataframe:
+pval_4 <- data.frame(t(p_values_4))
 ```
 
 ```{r}
-# Calculamos cambio en proporciones para coeficientes:
-# (Esta celda también tarda mucho en correr)
-odds_ratios <- exp(summary(modelo)$coefficients)
-ratios <- data.frame(t(odds_ratios))
+# Calculamos cambio en proporciones para los distintos coeficientes:
+# (Esta celda también tarda mucho en correr - menos que la que calcula puntuaciòn Z)
+# Primer modelo con materias únicas:
+odds_ratios_1 <- exp(summary(modelo_1)$coefficients)
+ratios_1 <- data.frame(t(odds_ratios_1))
+
+# Segundo modelo con materias únicas y sólo datos sociodemográficos:
+odds_ratios_2 <- exp(summary(modelo_2)$coefficients)
+ratios_2 <- data.frame(t(odds_ratios_2))
+
+# Tercer modelo con todas las materias:
+odds_ratios_3 <- exp(summary(modelo_3)$coefficients)
+ratios_3 <- data.frame(t(odds_ratios_3))
+
+# Cuarto modelo con todas las materias y sólo datos sociodemográficos:
+odds_ratios_4 <- exp(summary(modelo_4)$coefficients)
+ratios_4 <- data.frame(t(odds_ratios_4))
 ```
 
 Vemos coeficientes más relevantes para cada materia:
 
 ```{r}
+# Primer modelo:  Clasificación de materias considerando sólo tesis con materia única
+# Coeficientes más relevantes para materia Administrativa:
+ratios_1 %>%
+  arrange(-Administrativa) %>%
+  select(Administrativa) %>%
+  head(n = 10L)
+
 # Coeficientes más relevantes para materia Civil:
-ratios %>%
+ratios_1 %>%
   arrange(-Civil) %>%
   select(Civil) %>%
   head(n = 10L)
 
-# Coeficientes más relevantes para materia Común:
-ratios %>%
-  arrange(-Común) %>%
-  select(Común) %>%
-  head(n = 10L)
-
 # Coeficientes más relevantes para materia Constitucional:
-ratios %>%
+ratios_1 %>%
   arrange(-Constitucional) %>%
   select(Constitucional) %>%
   head(n = 10L)
 
 # Coeficientes más relevantes para materia Laboral:
-ratios %>%
+ratios_1 %>%
   arrange(-Laboral) %>%
   select(Laboral) %>%
   head(n = 10L)
 
 # Coeficientes más relevantes para materia Penal:
-ratios %>%
+ratios_1 %>%
   arrange(-Penal) %>%
   select(Penal) %>%
   head(n = 10L)
 ```
+
+```{r}
+# Segundo modelo:  Clasificación de materias considerando sólo tesis con materia única, y sólo datos 
+# Coeficientes más relevantes para materia Administrativa:
+ratios_2 %>%
+  arrange(-Administrativa) %>%
+  select(Administrativa) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Civil:
+ratios_2 %>%
+  arrange(-Civil) %>%
+  select(Civil) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Constitucional:
+ratios_2 %>%
+  arrange(-Constitucional) %>%
+  select(Constitucional) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Laboral:
+ratios_2 %>%
+  arrange(-Laboral) %>%
+  select(Laboral) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Penal:
+ratios_2 %>%
+  arrange(-Penal) %>%
+  select(Penal) %>%
+  head(n = 10L)
+```
+
+```{r}
+# Tercer modelo:  Clasificación de materias considerando todas las materias
+# Coeficientes más relevantes para materia Administrativa:
+ratios_3 %>%
+  arrange(-Administrativa) %>%
+  select(Administrativa) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Civil:
+ratios_3 %>%
+  arrange(-Civil) %>%
+  select(Civil) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Constitucional:
+ratios_3 %>%
+  arrange(-Constitucional) %>%
+  select(Constitucional) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Laboral:
+ratios_3 %>%
+  arrange(-Laboral) %>%
+  select(Laboral) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Penal:
+ratios_3 %>%
+  arrange(-Penal) %>%
+  select(Penal) %>%
+  head(n = 10L)
+```
+
+```{r}
+# Cuarto modelo:  Clasificación de materias considerando todas las materias, y sólo datos sociodemográficos
+# Coeficientes más relevantes para materia Administrativa:
+ratios_4 %>%
+  arrange(-Administrativa) %>%
+  select(Administrativa) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Civil:
+ratios_4 %>%
+  arrange(-Civil) %>%
+  select(Civil) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Constitucional:
+ratios_4 %>%
+  arrange(-Constitucional) %>%
+  select(Constitucional) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Laboral:
+ratios_4 %>%
+  arrange(-Laboral) %>%
+  select(Laboral) %>%
+  head(n = 10L)
+
+# Coeficientes más relevantes para materia Penal:
+ratios_4 %>%
+  arrange(-Penal) %>%
+  select(Penal) %>%
+  head(n = 10L)
+```
+
+Evaluamos el ajuste del modelo:
+
+```{r}
+# Primer modelo:  Clasificación de materias considerando sólo tesis con materia única
+# Realizamos predicción:
+prueba_1 <- data.frame(predict(modelo_1, total_r_mat_test)) %>%
+  rename(materia = predict.modelo_1..total_r_mat_test.)
+# Evaluamos el modelo:
+p1_1 <- as.factor(c(prueba_1$materia))
+p1_2 <- as.factor(c(total_r_mat_test$materia))
+# Para visualizar la matriz de confusión:
+metrics_1 <- confusionMatrix(p1_1, p1_2)
+# Para visualizar precisión y cobertura:
+metrics_1_PR <- data.frame(metrics_1$byClass)
+metrics_1_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_r_mat_test$materia, as.numeric(prueba_1$materia))
+```
+
+```{r}
+# Segundo modelo:  Clasificación de materias considerando sólo tesis con materia única, y sólo datos sociodemográficos
+# Realizamos predicción:
+prueba_2 <- data.frame(predict(modelo_2, total_r_mat_test_socio)) %>%
+  rename(materia = predict.modelo_2..total_r_mat_test_socio.)
+# Evaluamos el modelo:
+p2_1 <- as.factor(c(prueba_2$materia))
+p2_2 <- as.factor(c(total_r_mat_test_socio$materia))
+# Para visualizar la matriz de confusión:
+metrics_2 <- confusionMatrix(p2_1, p2_2)
+# Para visualizar precisión y cobertura:
+metrics_2_PR <- data.frame(metrics_2$byClass)
+metrics_2_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_r_mat_test_socio$materia, as.numeric(prueba_2$materia))
+```
+
+```{r}
+# Tercer modelo:  Clasificación de materias considerando todas las materias
+# Realizamos predicción:
+prueba_3 <- data.frame(predict(modelo_3, total_r_all_mat_test)) %>%
+  rename(materia = predict.modelo_3..total_r_all_mat_test.)
+# Evaluamos el modelo:
+p3_1 <- as.factor(c(prueba_3$materia))
+p3_2 <- as.factor(c(total_r_all_mat_test$materia))
+# Para visualizar la matriz de confusión:
+metrics_3 <- confusionMatrix(p3_1, p3_2)
+# Para visualizar precisión y cobertura:
+metrics_3_PR <- data.frame(metrics_3$byClass)
+metrics_3_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_r_all_mat_test$materia, as.numeric(prueba_3$materia))
+```
+
+```{r}
+# Cuarto modelo:  Clasificación de materias considerando todas las materias, y sólo datos sociodemográficos
+# Realizamos predicción:
+prueba_4 <- data.frame(predict(modelo_4, total_r_all_mat_test_socio)) %>%
+  rename(materia = predict.modelo_4..total_r_all_mat_test_socio.)
+# Evaluamos el modelo:
+p4_1 <- as.factor(c(prueba_4$materia))
+p4_2 <- as.factor(c(total_r_all_mat_test_socio$materia))
+# Para visualizar la matriz de confusión:
+metrics_4 <- confusionMatrix(p4_1, p4_2)
+# Para visualizar precisión y cobertura:
+metrics_4_PR <- data.frame(metrics_4$byClass)
+metrics_4_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_r_all_mat_test_socio$materia, as.numeric(prueba_4$materia))
+```
+
+
+# Árbol aleatorio:  Clasificación de materias
+
+```{r}
+# Volvemos a crear datos de entrenamiento y prueba, sin ninguna clase como referencia y con las materias como factores para el random forest:
+set.seed(2022)
+# Materias únicas:
+sample_mat <- sample(c(TRUE, FALSE), nrow(total_r_mat), replace=TRUE, prob=c(0.8,0.2))
+# Dataframe con datos de tesis y sociodemográficos:
+total_rf_mat_train <- total_r_mat[sample_mat, ] %>%
+  select(-id_socio, -anio)
+total_rf_mat_test <- total_r_mat[!sample_mat, ] %>%
+  select(-id_socio, -anio)
+total_rf_mat_train$materia <- factor(total_rf_mat_train$materia)
+total_rf_mat_test$materia <- factor(total_rf_mat_test$materia)
+# Dataframe con catos sociodemográficos únicamente (sin instancia ni época):
+total_rf_mat_train_socio <- total_r_mat[sample_mat, ] %>%
+  select(-id_socio, -anio, -instancia, -epoca)
+total_rf_mat_test_socio <- total_r_mat[!sample_mat, ] %>%
+  select(-id_socio, -anio, -instancia, -epoca)
+total_rf_mat_train_socio$materia <- factor(total_rf_mat_train_socio$materia)
+total_rf_mat_test_socio$materia <- factor(total_rf_mat_test_socio$materia)
+
+# Todas las materias (separadas):
+sample_all_mat <- sample(c(TRUE, FALSE), nrow(total_r_all_mat), replace=TRUE, prob=c(0.8,0.2))
+# Dataframe con datos de tesis y sociodemográficos:
+total_rf_all_mat_train <- total_r_all_mat[sample_all_mat, ] %>%
+  select(-id_socio, -anio)
+total_rf_all_mat_test <- total_r_all_mat[!sample_all_mat, ] %>%
+  select(-id_socio, -anio)
+total_rf_all_mat_train$materia <- factor(total_rf_all_mat_train$materia)
+total_rf_all_mat_test$materia <- factor(total_rf_all_mat_test$materia)
+# Dataframe con catos sociodemográficos únicamente (sin instancia ni época):
+total_rf_all_mat_train_socio <- total_r_all_mat[sample_all_mat, ] %>%
+  select(-id_socio, -anio, -instancia, -epoca)
+total_rf_all_mat_test_socio <- total_r_all_mat[!sample_all_mat, ] %>%
+  select(-id_socio, -anio, -instancia, -epoca)
+total_rf_all_mat_train_socio$materia <- factor(total_rf_all_mat_train_socio$materia)
+total_rf_all_mat_test_socio$materia <- factor(total_rf_all_mat_test_socio$materia)
+```
+
+Generamos los 4 árboles aleatorios:
+
+```{r}
+# Generamos los modelos:
+# (Estos modelos son bastante más rápidos que las regresiones anteriores)
+
+# Primer modelo (clasificar materia considerando sólo materias únicas):
+rf_1 <- randomForest(materia~., data = total_rf_mat_train)
+
+# Segundo modelo (clasificar materias con materias únicas y sólo datos sociodemográficos):
+rf_2 <- randomForest(materia~., data = total_rf_mat_train_socio)
+
+# Tercer modelo (clasificar materias considerando todas las materias):
+rf_3 <- randomForest(materia~., data = total_rf_all_mat_train)
+
+# Cuarto modelo (clasificar materias considerando todas las materias y sólo datos sociodemográficos): 
+rf_4 <- randomForest(materia~., data = total_rf_all_mat_train_socio)
+```
+
+Evaluamos la importancia de las variables:
+
+```{r}
+# Primer modelo (clasificar materia considerando sólo materias únicas):
+varImpPlot(rf_1)
+
+# Segundo modelo (clasificar materias con materias únicas y sólo datos sociodemográficos):
+varImpPlot(rf_2)
+
+# Tercer modelo (clasificar materias considerando todas las materias):
+varImpPlot(rf_3)
+
+# Cuarto modelo (clasificar materias considerando todas las materias y sólo datos sociodemográficos): 
+varImpPlot(rf_4)
+```
+
+Evaluamos el ajuste del modelo:
+
+```{r}
+# Primer modelo (clasificar materia considerando sólo materias únicas):
+# Realizamos predicción:
+prueba_rf_1 <- data.frame(predict(rf_1, total_rf_mat_test)) %>%
+  rename(materia = predict.rf_1..total_rf_mat_test.)
+# Evaluamos el modelo:
+p_rf_1_1 <- as.factor(c(prueba_rf_1$materia))
+p_rf_1_2 <- as.factor(c(total_rf_mat_test$materia))
+# Para visualizar la matriz de confusión:
+metrics_rf_1 <- confusionMatrix(p_rf_1_1, p_rf_1_2)
+# Para visualizar precisión y cobertura:
+metrics_rf_1_PR <- data.frame(metrics_rf_1$byClass)
+metrics_rf_1_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_rf_mat_test$materia, as.numeric(prueba_rf_1$materia))
+```
+
+```{r}
+# Segundo modelo (clasificar materias con materias únicas y sólo datos sociodemográficos):
+# Realizamos predicción:
+prueba_rf_2 <- data.frame(predict(rf_2, total_rf_mat_test_socio)) %>%
+  rename(materia = predict.rf_2..total_rf_mat_test_socio.)
+# Evaluamos el modelo:
+p_rf_2_1 <- as.factor(c(prueba_rf_2$materia))
+p_rf_2_2 <- as.factor(c(total_rf_mat_test_socio$materia))
+# Para visualizar la matriz de confusión:
+metrics_rf_2 <- confusionMatrix(p_rf_2_1, p_rf_2_2)
+# Para visualizar precisión y cobertura:
+metrics_rf_2_PR <- data.frame(metrics_rf_2$byClass)
+metrics_rf_2_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_rf_mat_test_socio$materia, as.numeric(prueba_rf_2$materia))
+```
+
+```{r}
+# Tercer modelo (clasificar materias considerando todas las materias):
+# Realizamos predicción:
+prueba_rf_3 <- data.frame(predict(rf_3, total_rf_all_mat_test)) %>%
+  rename(materia = predict.rf_3..total_rf_all_mat_test.)
+# Evaluamos el modelo:
+p_rf_3_1 <- as.factor(c(prueba_rf_3$materia))
+p_rf_3_2 <- as.factor(c(total_rf_all_mat_test$materia))
+# Para visualizar la matriz de confusión:
+metrics_rf_3 <- confusionMatrix(p_rf_3_1, p_rf_3_2)
+# Para visualizar precisión y cobertura:
+metrics_rf_3_PR <- data.frame(metrics_rf_3$byClass)
+metrics_rf_3_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_rf_all_mat_test$materia, as.numeric(prueba_rf_3$materia))
+```
+
+```{r}
+# Cuarto modelo (clasificar materias considerando todas las materias y sólo datos sociodemográficos): 
+# Realizamos predicción:
+prueba_rf_4 <- data.frame(predict(rf_4, total_rf_all_mat_test_socio)) %>%
+  rename(materia = predict.rf_4..total_rf_all_mat_test_socio.)
+# Evaluamos el modelo:
+p_rf_4_1 <- as.factor(c(prueba_rf_4$materia))
+p_rf_4_2 <- as.factor(c(total_rf_all_mat_test_socio$materia))
+# Para visualizar la matriz de confusión:
+metrics_rf_4 <- confusionMatrix(p_rf_4_1, p_rf_4_2)
+# Para visualizar precisión y cobertura:
+metrics_rf_4_PR <- data.frame(metrics_rf_4$byClass)
+metrics_rf_4_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_rf_all_mat_test_socio$materia, as.numeric(prueba_rf_4$materia))
+```
+
+# Árbol aleatorio:  Clasificación de instancias:
+
+```{r}
+# Volvemos a crear datos de entrenamiento y prueba, con las instancias como factores para el random forest:
+# Tomaremos de referencia el dataframe "total_r", ya que ahora no consideraremos las materias.
+set.seed(2022)
+sample_inst<- sample(c(TRUE, FALSE), nrow(total_r), replace=TRUE, prob=c(0.8,0.2))
+
+# Dataframe considerando epoca:
+total_rf_inst_train <- total_r[sample_inst, ] %>%
+  select(-id_socio, -anio, -materia)
+total_rf_inst_test <- total_r[!sample_inst, ] %>%
+  select(-id_socio, -anio, -materia)
+total_rf_inst_train$instancia <- factor(total_rf_inst_train$instancia)
+total_rf_inst_test$instancia <- factor(total_rf_inst_test$instancia)
+
+# Dataframe con datos sociodemográficos únicamente (sin época):
+total_rf_inst_train_socio <- total_r[sample_inst, ] %>%
+  select(-id_socio, -anio, -materia, -epoca)
+total_rf_inst_test_socio <- total_r[!sample_inst, ] %>%
+  select(-id_socio, -anio, -materia, -epoca)
+total_rf_inst_train_socio$instancia <- factor(total_rf_inst_train_socio$instancia)
+total_rf_inst_test_socio$instancia <- factor(total_rf_inst_test_socio$instancia)
+```
+
+Generamos los modelos:
+
+```{r}
+# Generamos los modelos:
+# (Se generan bastante rápido)
+
+# Quinto modelo (clasificar instancia considerando época):
+rf_5 <- randomForest(instancia~., data = total_rf_inst_train)
+
+# Sexto modelo (clasificar la instancia sin considerar la época):
+rf_6 <- randomForest(instancia~., data = total_rf_inst_train_socio)
+```
+
+Evaluamos la importancia de las variables:
+
+```{r}
+# Quinto modelo (clasificar instancia considerando época):
+varImpPlot(rf_5)
+
+# Sexto modelo (clasificar la instancia sin considerar la época):
+varImpPlot(rf_6)
+```
+
+Evaluamos el ajuste del modelo:
+
+```{r}
+# Quinto modelo (clasificar instancia considerando época):
+# Realizamos predicción:
+prueba_rf_5 <- data.frame(predict(rf_5, total_rf_inst_test)) %>%
+  rename(instancia = predict.rf_5..total_rf_inst_test.)
+# Evaluamos el modelo:
+p_rf_5_1 <- as.factor(c(prueba_rf_5$instancia))
+p_rf_5_2 <- as.factor(c(total_rf_inst_test$instancia))
+# Para visualizar la matriz de confusión:
+metrics_rf_5 <- confusionMatrix(p_rf_5_1, p_rf_5_2)
+# Para visualizar precisión y cobertura:
+metrics_rf_5_PR <- data.frame(metrics_rf_5$byClass)
+metrics_rf_5_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_rf_inst_test$instancia, as.numeric(prueba_rf_5$instancia))
+```
+
+```{r}
+# Sexto modelo (clasificar la instancia sin considerar la época):
+# Realizamos predicción:
+prueba_rf_6 <- data.frame(predict(rf_6, total_rf_inst_test_socio)) %>%
+  rename(instancia = predict.rf_6..total_rf_inst_test_socio.)
+# Evaluamos el modelo:
+p_rf_6_1 <- as.factor(c(prueba_rf_6$instancia))
+p_rf_6_2 <- as.factor(c(total_rf_inst_test_socio$instancia))
+# Para visualizar la matriz de confusión:
+metrics_rf_6 <- confusionMatrix(p_rf_6_1, p_rf_6_2)
+# Para visualizar precisión y cobertura:
+metrics_rf_6_PR <- data.frame(metrics_rf_6$byClass)
+metrics_rf_6_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_rf_inst_test_socio$instancia, as.numeric(prueba_rf_6$instancia))
+```
+
+# Modelos de Regresión:  Clasificación de instancias
+
+Generamos datos de entrenamiento y prueba:
+
+```{r}
+# Creamos datos de entrenamiento y prueba.
+# Tomaremos de referencia el dataframe "total_r", ya que ahora no consideraremos las materias.
+set.seed(2022)
+sample_inst<- sample(c(TRUE, FALSE), nrow(total_r), replace=TRUE, prob=c(0.8,0.2))
+
+# Dataframe considerando epoca:
+total_r_inst_train <- total_r[sample_inst, ] %>%
+  select(-id_socio, -anio, -materia)
+total_r_inst_test <- total_r[!sample_inst, ] %>%
+  select(-id_socio, -anio, -materia)
+
+# Dataframe con datos sociodemográficos únicamente (sin época):
+total_r_inst_train_socio <- total_r[sample_inst, ] %>%
+  select(-id_socio, -anio, -materia, -epoca)
+total_r_inst_test_socio <- total_r[!sample_inst, ] %>%
+  select(-id_socio, -anio, -materia, -epoca)
+```
+
+Realizamos regresión logísticas multinomial:
+
+```{r}
+# (Estos modelos se generan más rápido que la regresión para materias, pero aún así tarda un poco)
+
+# Quinto modelo (clasificar instancia considerando época):
+# Definimos la instancia "Tribunales Colegiados de Circuito" como la referencia:
+total_r_inst_train$instancia <- relevel(factor(total_r_inst_train$instancia), ref = "Tribunales Colegiados de Circuito")
+# Generamos el modelo:
+modelo_5 <- multinom(instancia ~ epoca + genero + generacion + edo + escuela, 
+              data = total_r_inst_train, maxit = 500)
+
+# Sexto modelo (clasificar la instancia sin considerar la época):
+# Definimos la materia "Común" como la referencia:
+total_r_inst_train_socio$instancia <- relevel(factor(total_r_inst_train_socio$instancia), ref = "Tribunales Colegiados de Circuito")
+# Generamos el modelo:
+modelo_6 <- multinom(instancia ~ genero + generacion + edo + escuela, 
+              data = total_r_inst_train_socio, maxit = 500)
+```
+
+Determinamos qué coeficientes son relevantes:
+
+```{r}
+# Calculamos la puntuación Z para cada coeficiente: 
+# (Esta celda tarda MUCHO en correr - aprox 30 mins)
+# Quinto modelo (clasificar instancia considerando época):
+z_stats_5 <- summary(modelo_5)$coefficients/
+  summary(modelo_5)$standard.errors
+
+# Sexto modelo (clasificar la instancia sin considerar la época):
+z_stats_6 <- summary(modelo_6)$coefficients/
+  summary(modelo_6)$standard.errors
+```
+
+```{r}
+# Convertimos a valores P:
+# Quinto modelo (clasificar instancia considerando época):
+p_values_5 <- (1 - pnorm(abs(z_stats_5)))*2
+# Guardamos los valores P en un dataframe:
+pval_5 <- data.frame(t(p_values_5))
+
+# Sexto modelo (clasificar la instancia sin considerar la época):
+p_values_6 <- (1 - pnorm(abs(z_stats_6)))*2
+# Guardamos los valores P en un dataframe:
+pval_6 <- data.frame(t(p_values_6))
+```
+
+```{r}
+# Calculamos cambio en proporciones para los distintos coeficientes:
+# (Esta celda también tarda mucho en correr)
+# Quinto modelo (clasificar instancia considerando época):
+odds_ratios_5 <- exp(summary(modelo_5)$coefficients)
+ratios_5 <- data.frame(t(odds_ratios_5))
+
+# Sexto modelo (clasificar la instancia sin considerar la época):
+odds_ratios_6 <- exp(summary(modelo_6)$coefficients)
+ratios_6 <- data.frame(t(odds_ratios_6))
+```
+
+```{r}
+# Quinto modelo (clasificar instancia considerando época):
+# Coeficientes más relevantes para  Primera Sala:
+ratios_5 %>%
+  arrange(-Primera.Sala) %>%
+  select(Primera.Sala) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Segunda Sala:
+ratios_5 %>%
+  arrange(-Segunda.Sala) %>%
+  select(Segunda.Sala) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Tercera Sala:
+ratios_5 %>%
+  arrange(-Tercera.Sala) %>%
+  select(Tercera.Sala) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Cuarta Sala:
+ratios_5 %>%
+  arrange(-Cuarta.Sala) %>%
+  select(Cuarta.Sala) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Sala Auxiliar:
+ratios_5 %>%
+  arrange(-Sala.Auxiliar) %>%
+  select(Sala.Auxiliar) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Pleno:
+ratios_5 %>%
+  arrange(-Pleno) %>%
+  select(Pleno) %>%
+  head(n = 20L)
+```
+
+```{r}
+# Sexto modelo (clasificar la instancia sin considerar la época):
+# Coeficientes más relevantes para  Primera Sala:
+ratios_6 %>%
+  arrange(-Primera.Sala) %>%
+  select(Primera.Sala) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Segunda Sala:
+ratios_6 %>%
+  arrange(-Segunda.Sala) %>%
+  select(Segunda.Sala) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Tercera Sala:
+ratios_6 %>%
+  arrange(-Tercera.Sala) %>%
+  select(Tercera.Sala) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Cuarta Sala:
+ratios_6 %>%
+  arrange(-Cuarta.Sala) %>%
+  select(Cuarta.Sala) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Sala Auxiliar:
+ratios_6 %>%
+  arrange(-Sala.Auxiliar) %>%
+  select(Sala.Auxiliar) %>%
+  head(n = 20L)
+
+# Coeficientes más relevantes para Pleno:
+ratios_6 %>%
+  arrange(-Pleno) %>%
+  select(Pleno) %>%
+  head(n = 20L)
+```
+
+Evaluamos el ajuste del modelo:
+
+```{r}
+# Quinto modelo (clasificar instancia considerando época):
+# Realizamos predicción:
+prueba_5 <- data.frame(predict(modelo_5, total_r_inst_test)) %>%
+  rename(instancia = predict.modelo_5..total_r_inst_test.)
+# Evaluamos el modelo:
+p5_1 <- as.factor(c(prueba_5$instancia))
+p5_2 <- as.factor(c(total_r_inst_test$instancia))
+# Para visualizar la matriz de confusión:
+metrics_5 <- confusionMatrix(p5_1, p5_2)
+# Para visualizar precisión y cobertura:
+metrics_5_PR <- data.frame(metrics_5$byClass)
+metrics_5_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_r_inst_test$instancia, as.numeric(prueba_5$instancia))
+```
+
+```{r}
+# Sexto modelo (clasificar la instancia sin considerar la época):
+# Realizamos predicción:
+prueba_6 <- data.frame(predict(modelo_6, total_r_inst_test_socio)) %>%
+  rename(instancia = predict.modelo_6..total_r_inst_test_socio.)
+# Evaluamos el modelo:
+p6_1 <- as.factor(c(prueba_6$instancia))
+p6_2 <- as.factor(c(total_r_inst_test_socio$instancia))
+# Para visualizar la matriz de confusión:
+metrics_6 <- confusionMatrix(p6_1, p6_2)
+# Para visualizar precisión y cobertura:
+metrics_6_PR <- data.frame(metrics_6$byClass)
+metrics_6_PR %>% select(5,6)
+#Para calcular el área bajo la curva:
+multiclass.roc(total_r_inst_test_socio$instancia, as.numeric(prueba_6$instancia))
+```
+
 
