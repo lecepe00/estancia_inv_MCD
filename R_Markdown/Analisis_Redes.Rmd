@@ -5,7 +5,8 @@ date: '2022-08-16'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+#echo = FALSE, 
 ```
 
 ## Análisis de Redes - Tesis de Jurisprudencia
@@ -18,7 +19,7 @@ library(tidygraph)
 library(ggraph)
 library(igraphdata)
 total <- read.csv("../output/tesis_secr_expand_rep.csv")
-socio <- read.csv("../data/sociodemo/X1_Sociodemograficos_1.csv")
+socio <- read.csv("../data/sociodemo/X1_Sociodemograficos_1_sinduplicados.csv")
 dim(total)
 dim(socio)
 ```
@@ -350,179 +351,964 @@ unico <- unico %>% distinct(id_tesis, secretario, .keep_all = TRUE)
 dim(unico)
 ```
 
+```{r}
+# Tesis con más de 5 reiteraciones
+total %>% 
+  group_by(id_tesis,epoca) %>%
+  summarise(n_reiter = n()) %>%
+  filter(n_reiter > 5) %>% 
+  filter(epoca != "Novena Época") %>% 
+  arrange(epoca)
+```
+
 **Red Ponentes-Secretarios**
 
 ```{r}
-
-#Cremamos df con info necesaria:
+# Creamos df con info necesaria:
 pon_sec_df <- total_id_nona %>% 
   pivot_longer(cols = names(total_id_nona)[24:29],
                     values_to = "id_secretario_socio") %>% 
-  select(id_ponente_socio_rep,id_secretario_socio,epoca) %>% 
+  select(id_tesis,X._reiteracion,instancia,epoca,materia,id_ponente_socio,id_ponente_socio_rep,id_secretario_socio) %>% 
   drop_na(id_secretario_socio) %>% 
   drop_na(id_ponente_socio_rep) 
 
-# Agregamos identificador único:
-pon_sec_df$from <- pon_sec_df %>% group_indices(id_ponente_socio_rep)
-pon_sec_df$to <- pon_sec_df %>% group_indices(id_secretario_socio)
+pon_sec_df <- pon_sec_df[!duplicated(pon_sec_df), ]
 
-# Creamos nodos:
-nodos_pon_sec <- pon_sec_df[, c("id_ponente_socio_rep","from","epoca")]
-colnames(nodos_pon_sec) <- c("nodos", "id","epoca")
+# Agregamos datos sociodemográficos a ponentes
+pon_sec_df$genero_pon <- socio[match(pon_sec_df$id_ponente_socio,socio$id_final),"gender"]
+pon_sec_df$anio_pon <- socio[match(pon_sec_df$id_ponente_socio,socio$id_final),"year_of_birth"]
+pon_sec_df$edo_pon <- socio[match(pon_sec_df$id_ponente_socio,socio$id_final),"state_of_birth"]
+pon_sec_df$escuela_pon <- socio[match(pon_sec_df$id_ponente_socio,socio$id_final),"college"]
 
-# Creamos aristas:
-aristas_pon_sec <- pon_sec_df[, c("from","to")]
+# Agregamos datos sociodemográficos a secretarios
+pon_sec_df$genero_sec <- socio[match(pon_sec_df$id_secretario_socio,socio$id_final),"gender"]
+pon_sec_df$anio_sec <- socio[match(pon_sec_df$id_secretario_socio,socio$id_final),"year_of_birth"]
+pon_sec_df$edo_sec <- socio[match(pon_sec_df$id_secretario_socio,socio$id_final),"state_of_birth"]
+pon_sec_df$escuela_sec <- socio[match(pon_sec_df$id_secretario_socio,socio$id_final),"college"]
+
+# Agregamos columna con generaciones:
+pon_sec_df <- pon_sec_df %>%
+  mutate(gen_pon = case_when(anio_pon >= 1912 & anio_pon <= 1921 ~ "Depresion",
+                             anio_pon >= 1922 & anio_pon <= 1927 ~ "Segunda GM",
+                             anio_pon >= 1928 & anio_pon <= 1945 ~ "Post Guerra",
+                             anio_pon >= 1946 & anio_pon <= 1954 ~ "Boomers I",
+                             anio_pon >= 1955 & anio_pon <= 1965 ~ "Boomers II",
+                             anio_pon >= 1966 & anio_pon <= 1976 ~ "Generacion X",
+                             TRUE ~ "Previos")) %>% 
+  relocate(gen_pon, .before = edo_pon)
+
+pon_sec_df <- pon_sec_df %>%
+  mutate(gen_sec = case_when(anio_sec >= 1912 & anio_sec <= 1921 ~ "Depresion",
+                             anio_sec >= 1922 & anio_sec <= 1927 ~ "Segunda GM",
+                             anio_sec >= 1928 & anio_sec <= 1945 ~ "Post Guerra",
+                             anio_sec >= 1946 & anio_sec <= 1954 ~ "Boomers I",
+                             anio_sec >= 1955 & anio_sec <= 1965 ~ "Boomers II",
+                             anio_sec >= 1966 & anio_sec <= 1976 ~ "Generacion X",
+                             TRUE ~ "Previos")) %>% 
+  relocate(gen_sec, .before = edo_sec)
+
+# Creamos nodos
+nodes_pon_sec <- data.frame(
+  data.frame(label=unlist(pon_sec_df[, c("id_ponente_socio_rep","id_secretario_socio")], use.names = FALSE)),
+  data.frame(genero=unlist(pon_sec_df[, c("genero_pon","genero_sec")], use.names = FALSE)),
+  data.frame(generacion=unlist(pon_sec_df[, c("gen_pon","gen_sec")], use.names = FALSE)),
+  data.frame(edo=unlist(pon_sec_df[, c("edo_pon","edo_sec")], use.names = FALSE)),
+  data.frame(escuela=unlist(pon_sec_df[, c("escuela_pon","escuela_sec")], use.names = FALSE)))
+
+nodes_pon_sec <- nodes_pon_sec[!duplicated(nodes_pon_sec$label), ]
+nodes_pon_sec$id <- nodes_pon_sec %>% group_indices(label) 
+nodes_pon_sec <- nodes_pon_sec %>%
+  relocate(id, .before = label)
+
+# Creamos aristas
+edges_pon_sec <- pon_sec_df %>% select(id_ponente_socio_rep,id_secretario_socio,instancia,epoca,materia)
+edges_pon_sec$from <- nodes_pon_sec[match(edges_pon_sec$id_ponente_socio_rep,nodes_pon_sec$label),"id"]
+edges_pon_sec$to <- nodes_pon_sec[match(edges_pon_sec$id_secretario_socio,nodes_pon_sec$label),"id"]
+
+#edges_pon_sec <- edges_pon_sec %>% group_by(from,to) %>% 
+#  summarise(n_reiter = n()) %>%
+#  arrange(-n_reiter)
+edges_pon_sec <- edges_pon_sec %>%
+  select(from,to,instancia,epoca,materia)
 
 # Creamos red:
-red_pon_sec <- tbl_graph(nodes = nodos_pon_sec, 
-                  edges = aristas_pon_sec, 
+red_pon_sec <- tbl_graph(nodes = nodes_pon_sec, 
+                  edges = edges_pon_sec, 
                   directed = TRUE)
 
 # Agregamos medidas de intermediación y centralidad
 red_pon_sec <- red_pon_sec %>% 
   activate(nodes) %>% 
   mutate(intermediacion = centrality_betweenness(),
-         central_pagerank = centrality_pagerank())
+         central_pagerank = centrality_pagerank(),
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"),
+         out_degree = centrality_degree(mode = "out"))
 
 red_pon_sec
 ```
 
-**Red Ponentes-Ponentes-1, usando todos los registros**
-
 ```{r}
-#Cremamos df con info necesaria:
-pon_pon1_df <- total_id_nona %>%
-  select(id_tesis,X._reiteracion,epoca,ponente_rep)
-
-# Agregamos identificador único:
-pon_pon1_df$id_ponente <- pon_pon1_df %>% group_indices(ponente_rep)
-
-# Hacemos combinatorias de 2 ponentes por tesis
-comb_pon_pon1 <- pon_pon1_df %>%
-  group_by(id_tesis) %>%
-  summarise(comb = t(combn(id_ponente, 2)))
-comb_pon_pon1 <- data.frame(id_tesis=comb_pon_pon1[1], from=comb_pon_pon1$comb[,1], to=comb_pon_pon1$comb[,2])
-
-# Agregamos Época de acuerdo al dataframe original
-comb_pon_pon1$epoca <- pon_pon1_df[match(comb_pon_pon1$id_tesis,pon_pon1_df$id_tesis),"epoca"]
-
-# Creamos nodos:
-nodos_pon_pon1 <- pon_pon1_df[, c("id_ponente","epoca")]
-  
-# Creamos aristas:
-aristas_pon_pon1 <- comb_pon_pon1 %>%
-  select(to,from)
-
-# Creamos red:
-red_pon_pon1 <- tbl_graph(nodes = nodos_pon_pon1, 
-                  edges = aristas_pon_pon1, 
-                  directed = TRUE)
-
-# Agregamos medidas de intermediación y centralidad
-red_pon_pon1 <- red_pon_pon1 %>% 
-  activate(nodes) %>% 
-  mutate(intermediacion = centrality_betweenness(),
-         central_pagerank = centrality_pagerank())
-
-red_pon_pon1
+red_pon_sec %>% 
+    activate(nodes) %>% 
+    as_tibble() %>% 
+    arrange(desc(intermediacion))
 ```
 
-**Red Ponentes-Ponentes-2, usando sólo tesis con ID sociodemográfico para TODOS sus ponentes**
+**Red Ponentes-Ponentes, usando sólo tesis con ID sociodemográfico para TODOS sus ponentes**
 
 ```{r}
-#Cremamos df con info necesaria:
-pon_pon2_df <- total_id_nona %>%
+# Creamos df con info necesaria:
+pon_pon_df <- total_id_nona %>%
   group_by(id_tesis) %>%
   filter(!any(id_ponente_socio_rep == "NA")) %>%
-  select(id_tesis,X._reiteracion,epoca,id_ponente_socio_rep)
+  select(id_tesis,X._reiteracion,instancia,epoca,materia,id_ponente_socio,id_ponente_socio_rep)
+
+# Agregamos datos sociodemográficos a ponentes
+pon_pon_df$genero <- socio[match(pon_pon_df$id_ponente_socio,socio$id_final),"gender"]
+pon_pon_df$anio <- socio[match(pon_pon_df$id_ponente_socio,socio$id_final),"year_of_birth"]
+pon_pon_df$edo <- socio[match(pon_pon_df$id_ponente_socio,socio$id_final),"state_of_birth"]
+pon_pon_df$escuela <- socio[match(pon_pon_df$id_ponente_socio,socio$id_final),"college"]
+
+# Agregamos columna con generaciones:
+pon_pon_df <- pon_pon_df %>%
+  mutate(generacion = case_when(anio >= 1912 & anio <= 1921 ~ "Depresion",
+                                anio >= 1922 & anio <= 1927 ~ "Segunda GM",
+                                anio >= 1928 & anio <= 1945 ~ "Post Guerra",
+                                anio >= 1946 & anio <= 1954 ~ "Boomers I",
+                                anio >= 1955 & anio <= 1965 ~ "Boomers II",
+                                anio >= 1966 & anio <= 1976 ~ "Generacion X",
+                                TRUE ~ "Previos")) %>% 
+  relocate(generacion, .before = edo)
 
 # Agregamos identificador único:
-pon_pon2_df$id_ponente <- pon_pon2_df %>% group_indices(id_ponente_socio_rep)
-
-# Hacemos combinatorias de 2 ponentes por tesis
-comb_pon_pon2 <- pon_pon2_df %>%
-  group_by(id_tesis) %>%
-  summarise(comb = t(combn(id_ponente, 2)))
-comb_pon_pon2 <- data.frame(id_tesis=comb_pon_pon2[1], from=comb_pon_pon2$comb[,1], to=comb_pon_pon2$comb[,2])
-
-# Agregamos Época de acuerdo al dataframe original
-comb_pon_pon2$epoca <- pon_pon2_df[match(comb_pon_pon2$id_tesis,pon_pon2_df$id_tesis),"epoca"]
+pon_pon_df$id <- pon_pon_df %>% group_indices(id_ponente_socio_rep)
 
 # Creamos nodos:
-nodos_pon_pon2 <- pon_pon2_df[, c("id_ponente","id_ponente_socio_rep","epoca")]
-  
+nodes_pon_pon <- pon_pon_df[, c("id", "id_ponente_socio_rep", "genero", "generacion", "edo", "escuela")]
+nodes_pon_pon <- nodes_pon_pon[!duplicated(nodes_pon_pon$id), ] %>%
+  rename(label = id_ponente_socio_rep)
+
 # Creamos aristas:
-aristas_pon_pon2 <- comb_pon_pon2 %>%
-  select(to,from)
+aux_df <- pon_pon_df %>% 
+  group_by(id_tesis) %>% 
+  slice(1) %>% 
+  select(id_tesis,instancia,epoca,materia) %>% 
+  ungroup()
+
+comb_pon_pon <- pon_pon_df %>%
+  group_by(id_tesis) %>%
+  summarise(comb = t(combn(id, 2)))
+comb_pon_pon <- data.frame(id_tesis=comb_pon_pon[1], from=comb_pon_pon$comb[,1], to=comb_pon_pon$comb[,2])
+
+comb_pon_pon <- comb_pon_pon %>% 
+  left_join(aux_df)
+
+edges_pon_pon <- comb_pon_pon %>%
+  select(from,to,instancia,epoca,materia)
+#edges_pon_pon <- edges_pon_pon %>% group_by(from,to) %>% 
+#  summarise(n_reiter = n()) %>%
+#  arrange(-n_reiter)
 
 # Creamos red:
-red_pon_pon2 <- tbl_graph(nodes = nodos_pon_pon2, 
-                  edges = aristas_pon_pon2, 
+red_pon_pon <- tbl_graph(nodes = nodes_pon_pon, 
+                  edges = edges_pon_pon, 
                   directed = TRUE)
 
 # Agregamos medidas de intermediación y centralidad
-red_pon_pon2 <- red_pon_pon2 %>% 
+red_pon_pon <- red_pon_pon %>% 
   activate(nodes) %>% 
   mutate(intermediacion = centrality_betweenness(),
-         central_pagerank = centrality_pagerank())
+         central_pagerank = centrality_pagerank(),
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"),
+         out_degree = centrality_degree(mode = "out"))
 
-red_pon_pon2
+red_pon_pon
 ```
 
-Creamos funciones para graficar redes:
-
-```{r,}
-
-graficar_red <- function(red,layout_red,tamaño,color,etiqueta,title){
-  red %>%
+```{r}
+red_pon_pon %>% 
     activate(nodes) %>% 
-    ggraph(layout = layout_red) + 
-    geom_edge_link(colour = "gray", arrow = arrow(length = unit(2, 'mm'))) + 
-    geom_node_point(aes(size = (!!as.name(tamaño)), colour = (!!as.name(color))), alpha = 0.7) +
-    geom_node_text(aes(label = (!!as.name(etiqueta))), repel = T, size = 2)  +
-    theme_graph(base_family = "sans") + 
-    ggtitle(title)
-}
-
-# Filtrando por alguna columna
-graficar_red_filtro <- function(red,filtro,filtro_param,layout_red,tamaño,color,etiqueta,title){
-  red %>%
-    activate(nodes) %>% 
-    filter((!!as.name(filtro)) == filtro_param) %>%
-    ggraph(layout = layout_red) + 
-    geom_edge_link(colour = "gray", arrow = arrow(length = unit(2, 'mm'))) + 
-    geom_node_point(aes(size = (!!as.name(tamaño)), colour = (!!as.name(color))), alpha = 0.7) +
-    geom_node_text(aes(label = (!!as.name(etiqueta))), repel = T, size = 2)  +
-    theme_graph(base_family = "sans") + 
-    ggtitle(title)
-}
+    as_tibble() %>% 
+    arrange(desc(intermediacion))
 ```
 
-Visualizamos red
+**Red 1a Reiteración (Pon-Sec)**
 
-```{r, fig.width = 8, fig.height=6}
-graficar_red_filtro(red_pon_sec,'epoca','Décima Época','drl','intermediacion','central_pagerank','nodos','Pon-Sec: Décima Época')
-```
+```{r}
+# Creamos df con info necesaria:
+primera_reit_df <- total_id_nona %>% 
+  group_by(id_tesis) %>% 
+  slice(1) %>% 
+  pivot_longer(cols = c("id_S1_socio","id_S2_socio","id_S3_socio","id_S4_socio","id_S5_socio","id_S6_socio"),
+                    values_to = "id_secretario_socio") %>% 
+  select(id_tesis,instancia,epoca,materia,id_ponente_socio,id_ponente_socio_rep,id_secretario_socio) %>% 
+  drop_na(id_secretario_socio) %>% 
+  drop_na(id_ponente_socio_rep) 
 
-```{r, fig.width = 8, fig.height=6}
-graficar_red(red_pon_pon2,'drl','intermediacion','central_pagerank','id_ponente_socio_rep','Pon-Pon2 (sólo con id socio)')
-```
+primera_reit_df <- primera_reit_df[!duplicated(primera_reit_df), ]
 
-```{r, fig.width = 8, fig.height=6}
-red_pon_pon2 %>%
+# Agregamos datos sociodemográficos a ponentes
+primera_reit_df$genero_pon <- socio[match(primera_reit_df$id_ponente_socio,socio$id_final),"gender"]
+primera_reit_df$anio_pon <- socio[match(primera_reit_df$id_ponente_socio,socio$id_final),"year_of_birth"]
+primera_reit_df$edo_pon <- socio[match(primera_reit_df$id_ponente_socio,socio$id_final),"state_of_birth"]
+primera_reit_df$escuela_pon <- socio[match(primera_reit_df$id_ponente_socio,socio$id_final),"college"]
+
+# Agregamos datos sociodemográficos a secretarios
+primera_reit_df$genero_sec <- socio[match(primera_reit_df$id_secretario_socio,socio$id_final),"gender"]
+primera_reit_df$anio_sec <- socio[match(primera_reit_df$id_secretario_socio,socio$id_final),"year_of_birth"]
+primera_reit_df$edo_sec <- socio[match(primera_reit_df$id_secretario_socio,socio$id_final),"state_of_birth"]
+primera_reit_df$escuela_sec <- socio[match(primera_reit_df$id_secretario_socio,socio$id_final),"college"]
+
+# Agregamos columna con generaciones:
+primera_reit_df <- primera_reit_df %>%
+  mutate(gen_pon = case_when(anio_pon >= 1912 & anio_pon <= 1921 ~ "Depresion",
+                             anio_pon >= 1922 & anio_pon <= 1927 ~ "Segunda GM",
+                             anio_pon >= 1928 & anio_pon <= 1945 ~ "Post Guerra",
+                             anio_pon >= 1946 & anio_pon <= 1954 ~ "Boomers I",
+                             anio_pon >= 1955 & anio_pon <= 1965 ~ "Boomers II",
+                             anio_pon >= 1966 & anio_pon <= 1976 ~ "Generacion X",
+                             TRUE ~ "Previos")) %>% 
+  relocate(gen_pon, .before = edo_pon)
+
+primera_reit_df <- primera_reit_df %>%
+  mutate(gen_sec = case_when(anio_sec >= 1912 & anio_sec <= 1921 ~ "Depresion",
+                             anio_sec >= 1922 & anio_sec <= 1927 ~ "Segunda GM",
+                             anio_sec >= 1928 & anio_sec <= 1945 ~ "Post Guerra",
+                             anio_sec >= 1946 & anio_sec <= 1954 ~ "Boomers I",
+                             anio_sec >= 1955 & anio_sec <= 1965 ~ "Boomers II",
+                             anio_sec >= 1966 & anio_sec <= 1976 ~ "Generacion X",
+                             TRUE ~ "Previos")) %>% 
+  relocate(gen_sec, .before = edo_sec)
+
+# Creamos nodos
+nodes_1a_reit <- data.frame(
+  data.frame(label=unlist(primera_reit_df[, c("id_ponente_socio_rep","id_secretario_socio")], use.names = FALSE)),
+  data.frame(genero=unlist(primera_reit_df[, c("genero_pon","genero_sec")], use.names = FALSE)),
+  data.frame(generacion=unlist(primera_reit_df[, c("gen_pon","gen_sec")], use.names = FALSE)),
+  data.frame(edo=unlist(primera_reit_df[, c("edo_pon","edo_sec")], use.names = FALSE)),
+  data.frame(escuela=unlist(primera_reit_df[, c("escuela_pon","escuela_sec")], use.names = FALSE)))
+
+nodes_1a_reit <- nodes_1a_reit[!duplicated(nodes_1a_reit$label), ]
+nodes_1a_reit$id <- nodes_1a_reit %>% group_indices(label) 
+nodes_1a_reit <- nodes_1a_reit %>%
+  relocate(id, .before = label)
+
+# Creamos aristas
+edges_1a_reit <- primera_reit_df[, c("id_ponente_socio_rep","id_secretario_socio","instancia","epoca","materia")]
+edges_1a_reit$from <- nodes_1a_reit[match(edges_1a_reit$id_ponente_socio_rep,nodes_1a_reit$label),"id"]
+edges_1a_reit$to <- nodes_1a_reit[match(edges_1a_reit$id_secretario_socio,nodes_1a_reit$label),"id"]
+
+#edges_1a_reit <- edges_1a_reit %>% group_by(from,to) %>% 
+#  summarise(n_reiter = n()) %>%
+#  arrange(-n_reiter)
+edges_1a_reit <- edges_1a_reit %>%
+  select(from,to,instancia,epoca,materia)
+
+# Creamos red:
+red_1a_reit <- tbl_graph(nodes = nodes_1a_reit, 
+                  edges = edges_1a_reit, 
+                  directed = TRUE)
+
+# Agregamos medidas de intermediación y centralidad
+red_1a_reit <- red_1a_reit %>% 
   activate(nodes) %>% 
-  filter(intermediacion >= 10000) %>%
-  #filter(central_pagerank >= 0.0004) %>%
-  ggraph(layout = 'drl') + 
-  geom_edge_link(colour="gray", arrow = arrow(length = unit(2, 'mm'))) + 
-  geom_node_point(aes(size= intermediacion, colour=central_pagerank)) +
-  geom_node_text(aes(label = id_ponente_socio_rep), repel=T, size=2) +
-  theme_graph(base_family="sans") + 
-  ggtitle('Pon-Pon2 (sólo con id socio) filtrado')
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(),
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"),
+         out_degree = centrality_degree(mode = "out"))
+
+red_1a_reit
 ```
 
-```{r, fig.width = 8, fig.height=6}
+**Visualización**
+
+```{r, fig.width=9, fig.height=9}
+set.seed(4)
+
+#Visualización inicial para crear layout
+red_pon_sec %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'kk') +
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Sec') +
+  theme_graph(base_family="sans") #+ facet_nodes(~generacion) 
+
+  #labs(edge_color = "# reiteraciones") +
+  #theme(legend.position = c(1, 0), legend.justification = c(1, 0)) + 
+  #guides(shape = guide_legend(override.aes = list(size = 2))) + 
+  #guides(color = guide_legend(override.aes = list(size = 2))) 
+  #theme(legend.title = element_text(size = 6), legend.text = element_text(size = 6))
 ```
 
-```{r, fig.width = 8, fig.height=6}
+```{r, fig.width=9, fig.height=9}
+layout_pon_sec <- create_layout(red_pon_sec, layout = "kk")
+#RBJ_2770, -108.21630529
+#BBM_3084, -41.21438612
+
+# Mover nodo RBJ_2770 más arriba
+layout_pon_sec$y[layout_pon_sec$label == "RBJ_2770"] <- -50
+
+ggraph(layout_pon_sec) +
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Sec') +
+  theme_graph(base_family="sans")
+```
+  
+```{r, fig.width=9, fig.height=9}
+ggraph(layout_pon_sec) + 
+  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_loop(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Sec, conexiones por época') +
+  theme_graph(base_family="sans") 
+
+ggraph(layout_pon_sec) +
+  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_loop(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Sec, conexiones por época') +
+  theme_graph(base_family="sans") + facet_edges(~epoca)
+
+ggraph(layout_pon_sec) +
+  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_loop(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Sec, conexiones por instancia') +
+  theme_graph(base_family="sans") + facet_edges(~instancia)
+```
+
+
+```{r, fig.width=9, fig.height=9}
+red_pon_sec %>%
+  activate(nodes) %>% 
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
+  geom_node_point(aes(size=intermediacion, colour=factor(generacion))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Sec, nodos por generacion') +
+  theme_graph(base_family="sans") + facet_nodes(~generacion) 
+
+red_pon_sec %>%
+  activate(nodes) %>% 
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Sec, nodos por estados') +
+  theme_graph(base_family="sans")  + facet_nodes(~edo) 
+
+red_pon_sec %>%
+  activate(nodes) %>% 
+  filter(edo %in% c("Ciudad de Mexico","Chiapas","Estado de Mexico","Jalisco","Michoacan","Veracruz")) %>%
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Sec, nodos por estados específicos') +
+  theme_graph(base_family="sans")  + facet_nodes(~edo) 
+```
+
+```{r, fig.width=9, fig.height=9}
+red_pon_pon %>%
+  activate(nodes) %>% 
+  #filter(intermediacion >= 10) %>%
+  #filter(in_degree >= 100) %>%
+  #filter(!node_is_isolated()) %>% 
+  ggraph(layout = 'kk') + 
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  #geom_edge_link(#aes(width = n_reiter),
+  #               colour="gray", arrow = arrow(length = unit(2, "mm"))) + #,start_cap = circle(2, "mm"),end_cap = circle(2, "mm")) +
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Pon') +
+  theme_graph(base_family="sans")
+```
+
+```{r, fig.width=9, fig.height=9}
+red_pon_pon %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_loop(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Pon, conexiones por época') +
+  theme_graph(base_family="sans") 
+
+red_pon_pon %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_loop(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Pon, conexiones por época') +
+  theme_graph(base_family="sans") + facet_edges(~epoca)
+
+red_pon_pon %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_loop(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Pon, conexiones por instancia') +
+  theme_graph(base_family="sans") + facet_edges(~instancia)
+```
+
+```{r, fig.width=9, fig.height=9}
+red_pon_pon %>%
+  activate(nodes) %>% 
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
+  geom_node_point(aes(size=intermediacion, colour=factor(generacion))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Pon, nodos por generacion') +
+  theme_graph(base_family="sans") + facet_nodes(~generacion) 
+
+red_pon_pon %>%
+  activate(nodes) %>% 
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Pon, nodos por estados') +
+  theme_graph(base_family="sans")  + facet_nodes(~edo) 
+
+red_pon_pon %>%
+  activate(nodes) %>% 
+  filter(edo %in% c("Ciudad de Mexico","Chiapas","Estado de Mexico","Jalisco","Michoacan","Veracruz")) %>%
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Pon-Pon, nodos por estados específicos') +
+  theme_graph(base_family="sans")  + facet_nodes(~edo) 
+```
+
+```{r, fig.width=9, fig.height=9}
+set.seed(4)
+
+red_1a_reit %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'kk') + 
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('1a reit Pon-Sec') +
+  theme_graph(base_family="sans")
+```
+
+```{r, fig.width=9, fig.height=9}
+red_1a_reit %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('1a reit Pon-Sec, conexiones por época') +
+  theme_graph(base_family="sans") 
+
+red_1a_reit %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('1a reit Pon-Sec, conexiones por época') +
+  theme_graph(base_family="sans") + facet_edges(~epoca)
+
+red_1a_reit %>%
+  activate(nodes) %>% 
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('1a reit Pon-Sec, conexiones por instancia') +
+  theme_graph(base_family="sans") + facet_edges(~instancia)
+```
+
+```{r, fig.width=9, fig.height=9}
+red_1a_reit %>%
+  activate(nodes) %>% 
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
+  geom_node_point(aes(size=intermediacion, colour=factor(generacion))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('1a reit Pon-Sec, nodos por generacion') +
+  theme_graph(base_family="sans") + facet_nodes(~generacion) 
+
+red_1a_reit %>%
+  activate(nodes) %>% 
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('1a reit Pon-Sec, nodos por estados') +
+  theme_graph(base_family="sans")  + facet_nodes(~edo) 
+
+red_1a_reit %>%
+  activate(nodes) %>% 
+  filter(edo %in% c("Ciudad de Mexico","Chiapas","Estado de Mexico","Jalisco","Michoacan","Veracruz")) %>%
+  #filter(intermediacion >= 10) %>%
+  ggraph(layout = 'kk') + #
+  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
+  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('1a reit Pon-Sec, nodos por estados específicos') +
+  theme_graph(base_family="sans")  + facet_nodes(~edo) 
+```
+**Creación de sub-redes**
+```{r}
+# Pon-Sec
+
+## Por Época
+edges_pon_sec_ep6  <- edges_pon_sec %>% filter(epoca == "Sexta Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_ep7  <- edges_pon_sec %>% filter(epoca == "Séptima Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_ep8  <- edges_pon_sec %>% filter(epoca == "Octava Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_ep9  <- edges_pon_sec %>% filter(epoca == "Novena Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_ep10 <- edges_pon_sec %>% filter(epoca == "Décima Época") %>% mutate_at(vars(from,to), as.character)
+
+nodes_pon_sec_ep6 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_ep6[, c("from","to")], use.names=FALSE))  %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_ep6) <- NULL
+nodes_pon_sec_ep7 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_ep7[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_ep7) <- NULL
+nodes_pon_sec_ep8 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_ep8[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_ep8) <- NULL
+nodes_pon_sec_ep9 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_ep9[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_ep9) <- NULL
+nodes_pon_sec_ep10 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_ep10[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_ep10) <- NULL
+
+subred_pon_sec_ep6  <- tbl_graph(nodes = nodes_pon_sec_ep6, edges = edges_pon_sec_ep6, directed = TRUE)
+subred_pon_sec_ep7  <- tbl_graph(nodes = nodes_pon_sec_ep7, edges = edges_pon_sec_ep7, directed = TRUE)
+subred_pon_sec_ep8  <- tbl_graph(nodes = nodes_pon_sec_ep8, edges = edges_pon_sec_ep8, directed = TRUE)
+subred_pon_sec_ep9  <- tbl_graph(nodes = nodes_pon_sec_ep9, edges = edges_pon_sec_ep9, directed = TRUE)
+subred_pon_sec_ep10 <- tbl_graph(nodes = nodes_pon_sec_ep10, edges = edges_pon_sec_ep10, directed = TRUE)
+
+subred_pon_sec_ep6 <- subred_pon_sec_ep6 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_ep7 <- subred_pon_sec_ep7 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_ep8 <- subred_pon_sec_ep8 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_ep9 <- subred_pon_sec_ep9 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_ep10 <- subred_pon_sec_ep10 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+
+## Por Instancia
+edges_pon_sec_tribunales <- edges_pon_sec %>% filter(instancia == "Tribunales Colegiados de Circuito") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_pleno <- edges_pon_sec %>% filter(instancia == "Pleno") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_sala1 <- edges_pon_sec %>% filter(instancia == "Primera Sala") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_sala2 <- edges_pon_sec %>% filter(instancia == "Segunda Sala") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_sala3 <- edges_pon_sec %>% filter(instancia == "Tercera Sala") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_sala4 <- edges_pon_sec %>% filter(instancia == "Cuarta Sala") %>% mutate_at(vars(from,to), as.character)
+edges_pon_sec_salaaux <- edges_pon_sec %>% filter(instancia == "Sala Auxiliar") %>% mutate_at(vars(from,to), as.character)
+
+nodes_pon_sec_tribunales <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_tribunales[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_tribunales) <- NULL
+nodes_pon_sec_pleno <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_pleno[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_pleno) <- NULL
+nodes_pon_sec_sala1 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_sala1[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_sala1) <- NULL
+nodes_pon_sec_sala2 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_sala2[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_sala2) <- NULL
+nodes_pon_sec_sala3 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_sala3[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_sala3) <- NULL
+nodes_pon_sec_sala4 <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_sala4[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_sala4) <- NULL
+nodes_pon_sec_salaaux <- subset(nodes_pon_sec, id %in% unlist(edges_pon_sec_salaaux[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_sec_salaaux) <- NULL
+
+subred_pon_sec_tribunales  <- tbl_graph(nodes = nodes_pon_sec_tribunales, edges = edges_pon_sec_tribunales, directed = TRUE)
+subred_pon_sec_pleno  <- tbl_graph(nodes = nodes_pon_sec_pleno, edges = edges_pon_sec_pleno, directed = TRUE)
+subred_pon_sec_sala1  <- tbl_graph(nodes = nodes_pon_sec_sala1, edges = edges_pon_sec_sala1, directed = TRUE)
+subred_pon_sec_sala2  <- tbl_graph(nodes = nodes_pon_sec_sala2, edges = edges_pon_sec_sala2, directed = TRUE)
+subred_pon_sec_sala3  <- tbl_graph(nodes = nodes_pon_sec_sala3, edges = edges_pon_sec_sala3, directed = TRUE)
+subred_pon_sec_sala4  <- tbl_graph(nodes = nodes_pon_sec_sala4, edges = edges_pon_sec_sala4, directed = TRUE)
+subred_pon_sec_salaaux  <- tbl_graph(nodes = nodes_pon_sec_salaaux, edges = edges_pon_sec_salaaux, directed = TRUE)
+
+subred_pon_sec_tribunales <- subred_pon_sec_tribunales %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_pleno <- subred_pon_sec_pleno %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_sala1 <- subred_pon_sec_sala1 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_sala2 <- subred_pon_sec_sala2 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_sala3 <- subred_pon_sec_sala3 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_sala4 <- subred_pon_sec_sala4 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_sec_salaaux <- subred_pon_sec_salaaux %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+```
+
+```{r}
+# Pon-Pon
+
+## Por Época
+edges_pon_pon_ep6  <- edges_pon_pon %>% filter(epoca == "Sexta Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_ep7  <- edges_pon_pon %>% filter(epoca == "Séptima Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_ep8  <- edges_pon_pon %>% filter(epoca == "Octava Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_ep9  <- edges_pon_pon %>% filter(epoca == "Novena Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_ep10 <- edges_pon_pon %>% filter(epoca == "Décima Época") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_ep11 <- edges_pon_pon %>% filter(epoca == "Undécima Época") %>% mutate_at(vars(from,to), as.character)
+
+nodes_pon_pon_ep6 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_ep6[, c("from","to")], use.names=FALSE))  %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_ep6) <- NULL
+nodes_pon_pon_ep7 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_ep7[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_ep7) <- NULL
+nodes_pon_pon_ep8 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_ep8[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_ep8) <- NULL
+nodes_pon_pon_ep9 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_ep9[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_ep9) <- NULL
+nodes_pon_pon_ep10 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_ep10[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_ep10) <- NULL
+nodes_pon_pon_ep11 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_ep11[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_ep11) <- NULL
+
+subred_pon_pon_ep6  <- tbl_graph(nodes = nodes_pon_pon_ep6, edges = edges_pon_pon_ep6, directed = TRUE)
+subred_pon_pon_ep7  <- tbl_graph(nodes = nodes_pon_pon_ep7, edges = edges_pon_pon_ep7, directed = TRUE)
+subred_pon_pon_ep8  <- tbl_graph(nodes = nodes_pon_pon_ep8, edges = edges_pon_pon_ep8, directed = TRUE)
+subred_pon_pon_ep9  <- tbl_graph(nodes = nodes_pon_pon_ep9, edges = edges_pon_pon_ep9, directed = TRUE)
+subred_pon_pon_ep10 <- tbl_graph(nodes = nodes_pon_pon_ep10, edges = edges_pon_pon_ep10, directed = TRUE)
+subred_pon_pon_ep11 <- tbl_graph(nodes = nodes_pon_pon_ep11, edges = edges_pon_pon_ep11, directed = TRUE)
+
+subred_pon_pon_ep6 <- subred_pon_pon_ep6 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_ep7 <- subred_pon_pon_ep7 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_ep8 <- subred_pon_pon_ep8 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_ep9 <- subred_pon_pon_ep9 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_ep10 <- subred_pon_pon_ep10 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_ep11 <- subred_pon_pon_ep11 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+
+## Por Instancia
+edges_pon_pon_tribunales <- edges_pon_pon %>% filter(instancia == "Tribunales Colegiados de Circuito") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_pleno <- edges_pon_pon %>% filter(instancia == "Pleno") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_sala1 <- edges_pon_pon %>% filter(instancia == "Primera Sala") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_sala2 <- edges_pon_pon %>% filter(instancia == "Segunda Sala") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_sala3 <- edges_pon_pon %>% filter(instancia == "Tercera Sala") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_sala4 <- edges_pon_pon %>% filter(instancia == "Cuarta Sala") %>% mutate_at(vars(from,to), as.character)
+edges_pon_pon_salaaux <- edges_pon_pon %>% filter(instancia == "Sala Auxiliar") %>% mutate_at(vars(from,to), as.character)
+
+nodes_pon_pon_tribunales <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_tribunales[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_tribunales) <- NULL
+nodes_pon_pon_pleno <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_pleno[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_pleno) <- NULL
+nodes_pon_pon_sala1 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_sala1[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_sala1) <- NULL
+nodes_pon_pon_sala2 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_sala2[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_sala2) <- NULL
+nodes_pon_pon_sala3 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_sala3[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_sala3) <- NULL
+nodes_pon_pon_sala4 <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_sala4[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_sala4) <- NULL
+nodes_pon_pon_salaaux <- subset(nodes_pon_pon, id %in% unlist(edges_pon_pon_salaaux[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_pon_pon_salaaux) <- NULL
+
+subred_pon_pon_tribunales  <- tbl_graph(nodes = nodes_pon_pon_tribunales, edges = edges_pon_pon_tribunales, directed = TRUE)
+subred_pon_pon_pleno  <- tbl_graph(nodes = nodes_pon_pon_pleno, edges = edges_pon_pon_pleno, directed = TRUE)
+subred_pon_pon_sala1  <- tbl_graph(nodes = nodes_pon_pon_sala1, edges = edges_pon_pon_sala1, directed = TRUE)
+subred_pon_pon_sala2  <- tbl_graph(nodes = nodes_pon_pon_sala2, edges = edges_pon_pon_sala2, directed = TRUE)
+subred_pon_pon_sala3  <- tbl_graph(nodes = nodes_pon_pon_sala3, edges = edges_pon_pon_sala3, directed = TRUE)
+subred_pon_pon_sala4  <- tbl_graph(nodes = nodes_pon_pon_sala4, edges = edges_pon_pon_sala4, directed = TRUE)
+subred_pon_pon_salaaux  <- tbl_graph(nodes = nodes_pon_pon_salaaux, edges = edges_pon_pon_salaaux, directed = TRUE)
+
+subred_pon_pon_tribunales <- subred_pon_pon_tribunales %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_pleno <- subred_pon_pon_pleno %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_sala1 <- subred_pon_pon_sala1 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_sala2 <- subred_pon_pon_sala2 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_sala3 <- subred_pon_pon_sala3 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_sala4 <- subred_pon_pon_sala4 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_pon_pon_salaaux <- subred_pon_pon_salaaux %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+```
+
+```{r}
+#1a reit (Pon-Sec)
+
+## Por Época
+edges_1a_reit_ep6  <- edges_1a_reit %>% filter(epoca == "Sexta Época") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_ep7  <- edges_1a_reit %>% filter(epoca == "Séptima Época") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_ep8  <- edges_1a_reit %>% filter(epoca == "Octava Época") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_ep9  <- edges_1a_reit %>% filter(epoca == "Novena Época") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_ep10 <- edges_1a_reit %>% filter(epoca == "Décima Época") %>% mutate_at(vars(from,to), as.character)
+
+nodes_1a_reit_ep6 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_ep6[, c("from","to")], use.names=FALSE))  %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_ep6) <- NULL
+nodes_1a_reit_ep7 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_ep7[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_ep7) <- NULL
+nodes_1a_reit_ep8 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_ep8[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_ep8) <- NULL
+nodes_1a_reit_ep9 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_ep9[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_ep9) <- NULL
+nodes_1a_reit_ep10 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_ep10[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_ep10) <- NULL
+
+subred_1a_reit_ep6  <- tbl_graph(nodes = nodes_1a_reit_ep6, edges = edges_1a_reit_ep6, directed = TRUE)
+subred_1a_reit_ep7  <- tbl_graph(nodes = nodes_1a_reit_ep7, edges = edges_1a_reit_ep7, directed = TRUE)
+subred_1a_reit_ep8  <- tbl_graph(nodes = nodes_1a_reit_ep8, edges = edges_1a_reit_ep8, directed = TRUE)
+subred_1a_reit_ep9  <- tbl_graph(nodes = nodes_1a_reit_ep9, edges = edges_1a_reit_ep9, directed = TRUE)
+subred_1a_reit_ep10 <- tbl_graph(nodes = nodes_1a_reit_ep10, edges = edges_1a_reit_ep10, directed = TRUE)
+
+subred_1a_reit_ep6 <- subred_1a_reit_ep6 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_ep7 <- subred_1a_reit_ep7 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_ep8 <- subred_1a_reit_ep8 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_ep9 <- subred_1a_reit_ep9 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_ep10 <- subred_1a_reit_ep10 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+
+## Por Instancia
+edges_1a_reit_tribunales <- edges_1a_reit %>% filter(instancia == "Tribunales Colegiados de Circuito") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_pleno <- edges_1a_reit %>% filter(instancia == "Pleno") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_sala1 <- edges_1a_reit %>% filter(instancia == "Primera Sala") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_sala2 <- edges_1a_reit %>% filter(instancia == "Segunda Sala") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_sala3 <- edges_1a_reit %>% filter(instancia == "Tercera Sala") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_sala4 <- edges_1a_reit %>% filter(instancia == "Cuarta Sala") %>% mutate_at(vars(from,to), as.character)
+edges_1a_reit_salaaux <- edges_1a_reit %>% filter(instancia == "Sala Auxiliar") %>% mutate_at(vars(from,to), as.character)
+
+nodes_1a_reit_tribunales <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_tribunales[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_tribunales) <- NULL
+nodes_1a_reit_pleno <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_pleno[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_pleno) <- NULL
+nodes_1a_reit_sala1 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_sala1[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_sala1) <- NULL
+nodes_1a_reit_sala2 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_sala2[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_sala2) <- NULL
+nodes_1a_reit_sala3 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_sala3[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_sala3) <- NULL
+nodes_1a_reit_sala4 <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_sala4[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_sala4) <- NULL
+nodes_1a_reit_salaaux <- subset(nodes_1a_reit, id %in% unlist(edges_1a_reit_salaaux[, c("from","to")], use.names=FALSE)) %>% mutate(id=as.character(id))
+rownames(nodes_1a_reit_salaaux) <- NULL
+
+subred_1a_reit_tribunales  <- tbl_graph(nodes = nodes_1a_reit_tribunales, edges = edges_1a_reit_tribunales, directed = TRUE)
+subred_1a_reit_pleno  <- tbl_graph(nodes = nodes_1a_reit_pleno, edges = edges_1a_reit_pleno, directed = TRUE)
+subred_1a_reit_sala1  <- tbl_graph(nodes = nodes_1a_reit_sala1, edges = edges_1a_reit_sala1, directed = TRUE)
+subred_1a_reit_sala2  <- tbl_graph(nodes = nodes_1a_reit_sala2, edges = edges_1a_reit_sala2, directed = TRUE)
+subred_1a_reit_sala3  <- tbl_graph(nodes = nodes_1a_reit_sala3, edges = edges_1a_reit_sala3, directed = TRUE)
+subred_1a_reit_sala4  <- tbl_graph(nodes = nodes_1a_reit_sala4, edges = edges_1a_reit_sala4, directed = TRUE)
+subred_1a_reit_salaaux  <- tbl_graph(nodes = nodes_1a_reit_salaaux, edges = edges_1a_reit_salaaux, directed = TRUE)
+
+subred_1a_reit_tribunales <- subred_1a_reit_tribunales %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_pleno <- subred_1a_reit_pleno %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_sala1 <- subred_1a_reit_sala1 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_sala2 <- subred_1a_reit_sala2 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_sala3 <- subred_1a_reit_sala3 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_sala4 <- subred_1a_reit_sala4 %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+subred_1a_reit_salaaux <- subred_1a_reit_salaaux %>% activate(nodes) %>% 
+  mutate(intermediacion = centrality_betweenness(),
+         central_pagerank = centrality_pagerank(), 
+         central_eigen = centrality_eigen(),
+         in_degree = centrality_degree(mode = "in"), 
+         out_degree = centrality_degree(mode = "out"))
+```
+
+```{r, fig.width=9, fig.height=9}
+```
+
+```{r, fig.width=9, fig.height=9}
+```
+
+```{r, fig.width=9, fig.height=9}
+```
+
+```{r, fig.width=9, fig.height=9}
+```
+
+```{r, fig.width=9, fig.height=9}
 ```
