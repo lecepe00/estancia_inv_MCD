@@ -5,8 +5,7 @@ date: '2022-09-06'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-#echo = FALSE, 
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=FALSE)
 ```
 
 ```{r}
@@ -14,24 +13,68 @@ library(tidyverse)
 library(tidygraph)
 library(ggraph)
 library(igraphdata)
+library(grid)
+```
+
+```{r, echo=TRUE}
+set_graph_style(
+  family = "sans",
+  title_size = 12,
+  title_face = "bold"
+)
+
+palette_cargo <- c("brown","blue1","green4")
+
+palette_edo32 <- c("#FC0D26","#00FFA3","#2A26F7","#F9CCCE","#FC0DDF","#00CEFA","#FD901C","#16803D",
+                   "#EEE500","#B52660","#5D357D","#D078FF","#22FBE0","#874B0D","#F48DDA","#6C949C",
+                   "#ADF57E","#ADA75D","#7299FB","#D1C2FF","#F40077","#D13D26","#B7EEC4","#8A4965",
+                   "#16FB0D","#FDC25F","#FE9794","#FB26AF","#AF00AA","#4F493B","#2271A3","#5C22B0")  
+
+palette_escuela <- c("dodgerblue2","#E31A1C","green4","#6A3D9A","blue1",
+                     "palegreen2","#FB9A99","skyblue2","deeppink1","#FF7F00",
+                     "#CAB2D6","#FDBF6F", "gray70","khaki2","maroon",
+                     "orchid1","gold1","steelblue4","darkturquoise",
+                     "green1","yellow4","black","yellow3","darkorange4","brown")  
+
+draw_key_custom = function(data, params, size) {
+  segmentsGrob(0.1, 0.5, 0.9, 0.5,
+               gp = gpar(
+                 col = alpha(data$edge_colour, data$edge_alpha),
+                 fill = alpha(data$edge_colour, data$edge_alpha),
+                 lwd = data$edge_width * .pt,
+                 lty = data$edge_linetype, lineend = 'butt'
+               ),
+               arrow = params$arrow
+  )
+}
 ```
 
 # Análisis de redes específicas:
 
-Subred ponente-secretario por instancia, pintando por materia única:
+Sub-red ponente-secretario por instancia, pintando por materia única:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
+#
 subred_pon_sec_tribunales %>%
   activate(edges) %>%
   filter(!grepl(".*,.*", materia)) %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen + 4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Tribunales Colegiados de Circuito') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
 
 subred_pon_sec_pleno %>%
   activate(edges) %>%
@@ -39,11 +82,19 @@ subred_pon_sec_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen + 4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Pleno') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala1 %>%
   activate(edges) %>%
@@ -51,11 +102,19 @@ subred_pon_sec_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen + 4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 1a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala2 %>%
   activate(edges) %>%
@@ -63,11 +122,19 @@ subred_pon_sec_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen + 4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 2a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala3 %>%
   activate(edges) %>%
@@ -75,11 +142,19 @@ subred_pon_sec_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen + 4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 3a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala4 %>%
   activate(edges) %>%
@@ -87,11 +162,19 @@ subred_pon_sec_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen + 4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 4a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_salaaux %>%
   activate(edges) %>%
@@ -99,175 +182,290 @@ subred_pon_sec_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen + 4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Sala Auxiliar') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-secretario por instancia, pintando por escuela:
+Sub-red ponente-secretario por instancia, pintando por escuela:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_pon_sec_tribunales %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Tribunales Colegiados de Circuito') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Pleno') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 1a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 2a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 3a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 4a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Sala Auxiliar') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-secretario por instancia, pintando por estado:
+Sub-red ponente-secretario por instancia, pintando por estado:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
+
 subred_pon_sec_tribunales %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Tribunales Colegiados de Circuito') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Pleno') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 1a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 2a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") + 
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 3a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: 4a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen + 4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Sala Auxiliar') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-ponente por instancia, pintando por materia única:
+Sub-red ponente-ponente por instancia, pintando por materia única:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_pon_pon_tribunales %>%
   activate(edges) %>%
   filter(!grepl(".*,.*", materia)) %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Tribunales Colegiados de Circuito') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_pleno %>%
   activate(edges) %>%
@@ -275,11 +473,19 @@ subred_pon_pon_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Pleno') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala1 %>%
   activate(edges) %>%
@@ -287,11 +493,19 @@ subred_pon_pon_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 1a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala2 %>%
   activate(edges) %>%
@@ -299,11 +513,19 @@ subred_pon_pon_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 2a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala3 %>%
   activate(edges) %>%
@@ -311,11 +533,19 @@ subred_pon_pon_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 3a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala4 %>%
   activate(edges) %>%
@@ -323,11 +553,19 @@ subred_pon_pon_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 4a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_salaaux %>%
   activate(edges) %>%
@@ -335,175 +573,291 @@ subred_pon_pon_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Sala Auxiliar') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-ponente por instancia, pintando por escuela:
+Sub-red ponente-ponente por instancia, pintando por escuela:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
+
 subred_pon_pon_tribunales %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Tribunales Colegiados de Circuito') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Pleno') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 1a Sala') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 2a Sala') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 3a Sala') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 4a Sala') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Sala Auxiliar') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-ponente por instancia, pintando por estado:
+Sub-red ponente-ponente por instancia, pintando por estado:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_pon_pon_tribunales %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Tribunales Colegiados de Circuito') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Pleno') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 1a Sala') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 2a Sala') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 3a Sala') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: 4a Sala') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Sala Auxiliar') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred primeras reiteraciones por instancia, pintando por materia única:
+Sub-red 1er Criterio por instancia, pintando por materia única:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
+
 subred_1a_reit_tribunales %>%
   activate(edges) %>%
   filter(!grepl(".*,.*", materia)) %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Tribunales Colegiados de Circuito') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_pleno %>%
   activate(edges) %>%
@@ -511,11 +865,19 @@ subred_1a_reit_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") + 
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Pleno') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala1 %>%
   activate(edges) %>%
@@ -523,11 +885,19 @@ subred_1a_reit_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 1a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala2 %>%
   activate(edges) %>%
@@ -535,11 +905,19 @@ subred_1a_reit_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 2a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala3 %>%
   activate(edges) %>%
@@ -547,11 +925,19 @@ subred_1a_reit_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 3a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala4 %>%
   activate(edges) %>%
@@ -559,11 +945,19 @@ subred_1a_reit_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 4a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_salaaux %>%
   activate(edges) %>%
@@ -571,741 +965,1254 @@ subred_1a_reit_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=materia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Sala Auxiliar') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred 1a Reiteración por instancia, pintando por escuela:
+Sub-red 1er Criterio por instancia, pintando por escuela:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_1a_reit_tribunales %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Tribunales Colegiados de Circuito') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Pleno') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 1a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 2a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 3a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 4a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Sala Auxiliar') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred 1a Reiteración por instancia, pintando por estado:
+Sub-red 1er Criterio por instancia, pintando por estado:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_1a_reit_tribunales %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Tribunales Colegiados de Circuito') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_pleno %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Pleno') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala1 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 1a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala2 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 2a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala3 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 3a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_sala4 %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: 4a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_salaaux %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.05) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Sala Auxiliar') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-secretario por materia, pintando por escuela:
+Sub-red ponente-secretario por materia, pintando por escuela:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_pon_sec_admin %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Administrativa')  +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_civil %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Civil') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_comun %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Común') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_const %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Constitucional') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_laboral %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Laboral') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.00000000000000005) %>%
-  #filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-Subred ponente-secretario por materia, pintando por estado:
-
-```{r, fig.width=9, fig.height=7}
-subred_pon_sec_admin %>%
-  activate(nodes) %>% 
-  filter(central_eigen >= 0.005) %>%
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_civil %>%
-  activate(nodes) %>% 
-  filter(central_eigen >= 0.005) %>%
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_comun %>%
-  activate(nodes) %>% 
-  filter(central_eigen >= 0.005) %>%
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_const %>%
-  activate(nodes) %>% 
-  filter(central_eigen >= 0.005) %>%
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_laboral %>%
-  activate(nodes) %>% 
-  filter(central_eigen >= 0.005) %>%
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Penal') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Penal') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-secretario por materia, pintando por instancia:
+Sub-red ponente-secretario por materia, pintando por estado:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_pon_sec_admin %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Administrativa') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
 
 subred_pon_sec_civil %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Civil') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_comun %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Común') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_const %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Constitucional') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_laboral %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Laboral') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_sec_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-sec, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Secretario: Materia Penal') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-ponente por materia, pintando por escuela:
+Sub-red ponente-secretario por materia, pintando por instancia:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
+subred_pon_sec_admin %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.005) %>%
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Ponente-Secretario: Materia Administrativa') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+subred_pon_sec_civil %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.005) %>%
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Ponente-Secretario: Materia Civil') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+subred_pon_sec_comun %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.005) %>%
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Ponente-Secretario: Materia Común') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+subred_pon_sec_const %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.005) %>%
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Ponente-Secretario: Materia Constitucional') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+subred_pon_sec_laboral %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.005) %>%
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Ponente-Secretario: Materia Laboral') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+subred_pon_sec_penal %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.005) %>%
+  ggraph(layout = 'kk') +
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Ponente-Secretario: Materia Penal') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+```
+
+Sub-red ponente-ponente por materia, pintando por escuela:
+
+```{r} 
 subred_pon_pon_admin %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Administrativa') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_civil %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Civil') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_comun %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) +  
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Común') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_const %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Constitucional') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_laboral %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Laboral') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Penal') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-ponente por materia, pintando por estado:
+Sub-red ponente-ponente por materia, pintando por estado:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_pon_pon_admin %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Administrativa') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_civil %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Civil') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_comun %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Común') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_const %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Constitucional') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_laboral %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Laboral') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
   geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Penal') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred ponente-ponente por materia, pintando por instancia:
+Sub-red ponente-ponente por materia, pintando por instancia:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_pon_pon_admin %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Administrativa') +
+  labs(size="Centralidad", edge_color="Instancia") + 
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_civil %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Civil') +
+  labs(size="Centralidad", edge_color="Instancia") + 
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_comun %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Común') +
+  labs(size="Centralidad", edge_color="Instancia") + 
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_const %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Constitucional') +
+  labs(size="Centralidad", edge_color="Instancia") + 
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_laboral %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Laboral') +
+  labs(size="Centralidad", edge_color="Instancia") + 
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_pon_pon_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red pon-pon, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red Ponente-Ponente: Materia Penal') +
+  labs(size="Centralidad", edge_color="Instancia") + 
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred primera reiteración por materia, pintando por escuela:
+Sub-red 1er Criterio por materia, pintando por escuela:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_1a_reit_admin %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Administrativa') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_civil %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Civil') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_comun %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Común') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_const %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Constitucional') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_laboral %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Laboral') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Penal') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred primera reiteración por materia, pintando por estado:
+Sub-red 1er Criterio por materia, pintando por estado:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_1a_reit_admin %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Administrativa') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_civil %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Civil') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_comun %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Común') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_const %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Constitucional') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_laboral %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Laboral') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Penal') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
-Subred 1a reiteración por materia, pintando por instancia:
+Sub-red 1er Criterio por materia, pintando por instancia:
 
-```{r, fig.width=9, fig.height=7}
+```{r} 
 subred_1a_reit_admin %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Administrativa') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_civil %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Civil') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_comun %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Común') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_const %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Constitucional') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_laboral %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Laboral') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 
 subred_1a_reit_penal %>%
   activate(nodes) %>% 
   filter(central_eigen >= 0.005) %>%
   ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_edge_fan(aes(color=instancia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Materia Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
+  ggtitle('Sub-red 1er Criterio: Materia Penal') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Instancia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
 ```
 
 Ordenando las redes por centralidad:
 
-```{r}
+```{r, echo=TRUE}
 # Red ponente-ponente:
 red_pon_pon %>% 
     activate(nodes) %>% 
@@ -1313,7 +2220,7 @@ red_pon_pon %>%
     arrange(desc(central_eigen))
 ```
 
-```{r}
+```{r, echo=TRUE}
 # Red ponente-secretario:
 red_pon_sec %>% 
     activate(nodes) %>% 
@@ -1321,7 +2228,7 @@ red_pon_sec %>%
     arrange(desc(central_eigen))
 ```
 
-```{r}
+```{r, echo=TRUE}
 # Red primera reiteración:
 red_1a_reit %>% 
     activate(nodes) %>% 
@@ -1329,4 +2236,322 @@ red_1a_reit %>%
     arrange(desc(central_eigen))
 ```
 
+#-------------------------------------------------------------
 
+Redes para revisión 09/09/22:
+
+```{r}
+#Creamos layouts para poder editar parámetros
+set.seed(2022)
+
+layout_1ercrit_sala1 <- subred_1a_reit_sala1 %>%
+  activate(edges) %>%
+  filter(!grepl(".*,.*", materia)) %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.05) %>%
+  create_layout(., layout = 'kk')
+
+layout_1ercrit_sala2 <- subred_1a_reit_sala2 %>%
+  activate(edges) %>%
+  filter(!grepl(".*,.*", materia)) %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.05) %>%
+  create_layout(., layout = 'kk')
+
+layout_ponsec_sala1 <- subred_pon_sec_sala1 %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.05) %>%
+  create_layout(., layout = 'kk')
+
+layout_ponsec_sala2 <- subred_pon_sec_sala2 %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.05) %>%
+  create_layout(., layout = 'kk')
+
+layout_ponpon_sala1 <- subred_pon_pon_sala1 %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.05) %>%
+  create_layout(., layout = 'kk')
+
+layout_ponpon_sala2 <- subred_pon_pon_sala2 %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.05) %>%
+  create_layout(., layout = 'kk')
+
+layout_ponsec_const <- subred_pon_sec_const %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.005) %>%
+  create_layout(., layout = 'kk')
+
+layout_ponsec_penal <- subred_pon_sec_penal %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.005) %>%
+  create_layout(., layout = 'kk')
+
+layout_ponsec_penal_masnodos <- subred_pon_sec_penal %>%
+  activate(nodes) %>% 
+  filter(central_eigen >= 0.00000000000000005) %>%
+  create_layout(., layout = 'kk')
+
+layout_1ercrit_sala1$x[layout_1ercrit_sala1$label == "PRJ_3299"] <- 2
+```
+
+```{r}
+ggraph(layout_1ercrit_sala1) + 
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red 1er Criterio: 1a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_1ercrit_sala2) +
+  geom_edge_fan(aes(color=materia, end_cap=circle(node2.central_eigen+4,"pt")), arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, color=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red 1er Criterio: 2a Sala') +
+  labs(colour="Cargo", size="Centralidad", edge_color="Materia") + 
+  scale_color_manual(values = palette_cargo) +
+  scale_edge_color_brewer(palette = 'Set2') + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponsec_sala1) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Pon-Sec, 1a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponsec_sala2) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) +  
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Pon-Sec, 2a Sala') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponsec_sala1) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Pon-Sec, 1a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponsec_sala2) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Pon-Sec, 2a Sala') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponpon_sala1) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Pon-Pon, 1a Sala') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponpon_sala2) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Pon-Pon, 2a Sala') +
+  labs(colour="Escuela", size="Centralidad") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponpon_sala1) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Pon-Pon, 1a Sala') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponpon_sala2) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo))) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red Pon-Pon, 2a Sala') +
+  labs(colour="Estado", size="Centralidad") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+```
+
+```{r}
+ggraph(layout_ponsec_const) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red pon-sec, Materia Constitucional') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponsec_const) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red pon-sec, Materia Constitucional') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponsec_penal) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red pon-sec, Materia Penal') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponsec_penal_masnodos) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red pon-sec, Materia Penal') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.3, 'cm'), 
+        legend.key.height = unit(0.3, 'cm'), 
+        legend.key.width = unit(0.3, 'cm'), 
+        legend.title = element_text(size=6), 
+        legend.text = element_text(size=5),
+        panel.border = element_blank()) 
+
+ggraph(layout_ponsec_penal) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red pon-sec, Materia Penal') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.4, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=7), 
+        legend.text = element_text(size=6),
+        panel.border = element_blank())
+
+ggraph(layout_ponsec_penal_masnodos) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red pon-sec, Materia Penal') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.3, 'cm'), 
+        legend.key.height = unit(0.3, 'cm'), 
+        legend.key.width = unit(0.3, 'cm'), 
+        legend.title = element_text(size=6), 
+        legend.text = element_text(size=5),
+        panel.border = element_blank()) 
+```
+
+```{r, fig.width=4, fig.height=3}
+ggraph(layout_ponsec_penal_masnodos) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(escuela), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red pon-sec, Materia Penal') +
+  labs(colour="Escuela", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_escuela) + 
+  theme(legend.key.size = unit(0.2, 'cm'), 
+        legend.key.height = unit(0.2, 'cm'), 
+        legend.key.width = unit(0.2, 'cm'), 
+        legend.title = element_text(size=5), 
+        legend.text = element_text(size=4),
+        panel.border = element_blank()) 
+
+ggraph(layout_ponsec_penal_masnodos) +
+  geom_edge_fan(aes(end_cap=circle(node2.central_eigen+4,"pt")), colour="gray", arrow=arrow(angle=15,length=unit(2,"mm"),ends="last",type="closed"),key_glyph="custom") +
+  geom_node_point(aes(size=central_eigen, colour=factor(edo), shape=cargo)) + 
+  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
+  ggtitle('Sub-red pon-sec, Materia Penal') +
+  labs(colour="Estado", size="Centralidad", shape="Cargo") + 
+  scale_color_manual(values = palette_edo32) + 
+  theme(legend.key.size = unit(0.3, 'cm'), 
+        legend.key.height = unit(0.3, 'cm'), 
+        legend.key.width = unit(0.3, 'cm'), 
+        legend.title = element_text(size=6), 
+        legend.text = element_text(size=5),
+        panel.border = element_blank()) 
+```

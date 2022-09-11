@@ -6,7 +6,6 @@ date: '2022-08-16'
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
-#echo = FALSE, 
 ```
 
 ## Análisis de Redes - Tesis de Jurisprudencia
@@ -379,12 +378,14 @@ pon_sec_df$genero_pon <- socio[match(pon_sec_df$id_ponente_socio,socio$id_final)
 pon_sec_df$anio_pon <- socio[match(pon_sec_df$id_ponente_socio,socio$id_final),"year_of_birth"]
 pon_sec_df$edo_pon <- socio[match(pon_sec_df$id_ponente_socio,socio$id_final),"state_of_birth"]
 pon_sec_df$escuela_pon <- socio[match(pon_sec_df$id_ponente_socio,socio$id_final),"college"]
+pon_sec_df$cargo_pon <- 'Ponente'
 
 # Agregamos datos sociodemográficos a secretarios
 pon_sec_df$genero_sec <- socio[match(pon_sec_df$id_secretario_socio,socio$id_final),"gender"]
 pon_sec_df$anio_sec <- socio[match(pon_sec_df$id_secretario_socio,socio$id_final),"year_of_birth"]
 pon_sec_df$edo_sec <- socio[match(pon_sec_df$id_secretario_socio,socio$id_final),"state_of_birth"]
 pon_sec_df$escuela_sec <- socio[match(pon_sec_df$id_secretario_socio,socio$id_final),"college"]
+pon_sec_df$cargo_sec <- 'Secretario'
 
 # Agregamos columna con generaciones:
 pon_sec_df <- pon_sec_df %>%
@@ -413,23 +414,27 @@ nodes_pon_sec <- data.frame(
   data.frame(genero=unlist(pon_sec_df[, c("genero_pon","genero_sec")], use.names = FALSE)),
   data.frame(generacion=unlist(pon_sec_df[, c("gen_pon","gen_sec")], use.names = FALSE)),
   data.frame(edo=unlist(pon_sec_df[, c("edo_pon","edo_sec")], use.names = FALSE)),
-  data.frame(escuela=unlist(pon_sec_df[, c("escuela_pon","escuela_sec")], use.names = FALSE)))
+  data.frame(escuela=unlist(pon_sec_df[, c("escuela_pon","escuela_sec")], use.names = FALSE)),
+  data.frame(cargo=unlist(pon_sec_df[, c("cargo_pon","cargo_sec")], use.names = FALSE)))
 
+nodes_pon_sec <- nodes_pon_sec[!duplicated(nodes_pon_sec), ]
+nodes_pon_sec <- nodes_pon_sec %>% 
+  group_by(label) %>% 
+  mutate(cargo = if(n() == 1) cargo else "Secretario/Ponente") %>% ungroup()
 nodes_pon_sec <- nodes_pon_sec[!duplicated(nodes_pon_sec$label), ]
 nodes_pon_sec$id <- nodes_pon_sec %>% group_indices(label) 
 nodes_pon_sec <- nodes_pon_sec %>%
   relocate(id, .before = label)
 
 # Creamos aristas
-edges_pon_sec <- pon_sec_df %>% select(id_ponente_socio_rep,id_secretario_socio,instancia,epoca,materia)
-edges_pon_sec$from <- nodes_pon_sec[match(edges_pon_sec$id_ponente_socio_rep,nodes_pon_sec$label),"id"]
-edges_pon_sec$to <- nodes_pon_sec[match(edges_pon_sec$id_secretario_socio,nodes_pon_sec$label),"id"]
-
+edges_pon_sec <- pon_sec_df %>% select(id_ponente_socio_rep,id_secretario_socio,instancia,epoca,materia) %>% 
+  left_join(nodes_pon_sec, by = c("id_ponente_socio_rep" = "label")) %>% 
+  left_join(nodes_pon_sec, by = c("id_secretario_socio" = "label")) %>%
+  rename(from=id.x, to=id.y) %>%
+  select(from,to,instancia,epoca,materia)
 #edges_pon_sec <- edges_pon_sec %>% group_by(from,to) %>% 
 #  summarise(n_reiter = n()) %>%
 #  arrange(-n_reiter)
-edges_pon_sec <- edges_pon_sec %>%
-  select(from,to,instancia,epoca,materia)
 
 # Creamos red:
 red_pon_sec <- tbl_graph(nodes = nodes_pon_sec, 
@@ -554,12 +559,14 @@ primera_reit_df$genero_pon <- socio[match(primera_reit_df$id_ponente_socio,socio
 primera_reit_df$anio_pon <- socio[match(primera_reit_df$id_ponente_socio,socio$id_final),"year_of_birth"]
 primera_reit_df$edo_pon <- socio[match(primera_reit_df$id_ponente_socio,socio$id_final),"state_of_birth"]
 primera_reit_df$escuela_pon <- socio[match(primera_reit_df$id_ponente_socio,socio$id_final),"college"]
+primera_reit_df$cargo_pon <- 'Ponente'
 
 # Agregamos datos sociodemográficos a secretarios
 primera_reit_df$genero_sec <- socio[match(primera_reit_df$id_secretario_socio,socio$id_final),"gender"]
 primera_reit_df$anio_sec <- socio[match(primera_reit_df$id_secretario_socio,socio$id_final),"year_of_birth"]
 primera_reit_df$edo_sec <- socio[match(primera_reit_df$id_secretario_socio,socio$id_final),"state_of_birth"]
 primera_reit_df$escuela_sec <- socio[match(primera_reit_df$id_secretario_socio,socio$id_final),"college"]
+primera_reit_df$cargo_sec <- 'Secretario'
 
 # Agregamos columna con generaciones:
 primera_reit_df <- primera_reit_df %>%
@@ -588,23 +595,27 @@ nodes_1a_reit <- data.frame(
   data.frame(genero=unlist(primera_reit_df[, c("genero_pon","genero_sec")], use.names = FALSE)),
   data.frame(generacion=unlist(primera_reit_df[, c("gen_pon","gen_sec")], use.names = FALSE)),
   data.frame(edo=unlist(primera_reit_df[, c("edo_pon","edo_sec")], use.names = FALSE)),
-  data.frame(escuela=unlist(primera_reit_df[, c("escuela_pon","escuela_sec")], use.names = FALSE)))
+  data.frame(escuela=unlist(primera_reit_df[, c("escuela_pon","escuela_sec")], use.names = FALSE)),
+  data.frame(cargo=unlist(primera_reit_df[, c("cargo_pon","cargo_sec")], use.names = FALSE)))
 
+nodes_1a_reit <- nodes_1a_reit[!duplicated(nodes_1a_reit), ]
+nodes_1a_reit <- nodes_1a_reit %>% 
+  group_by(label) %>% 
+  mutate(cargo = if(n() == 1) cargo else "Secretario/Ponente")
 nodes_1a_reit <- nodes_1a_reit[!duplicated(nodes_1a_reit$label), ]
 nodes_1a_reit$id <- nodes_1a_reit %>% group_indices(label) 
 nodes_1a_reit <- nodes_1a_reit %>%
   relocate(id, .before = label)
 
 # Creamos aristas
-edges_1a_reit <- primera_reit_df[, c("id_ponente_socio_rep","id_secretario_socio","instancia","epoca","materia")]
-edges_1a_reit$from <- nodes_1a_reit[match(edges_1a_reit$id_ponente_socio_rep,nodes_1a_reit$label),"id"]
-edges_1a_reit$to <- nodes_1a_reit[match(edges_1a_reit$id_secretario_socio,nodes_1a_reit$label),"id"]
-
+edges_1a_reit <- primera_reit_df[, c("id_ponente_socio_rep","id_secretario_socio","instancia","epoca","materia")] %>% 
+  left_join(nodes_1a_reit, by = c("id_ponente_socio_rep" = "label")) %>% 
+  left_join(nodes_1a_reit, by = c("id_secretario_socio" = "label")) %>%
+  rename(from=id.x, to=id.y) %>%
+  select(from,to,instancia,epoca,materia)
 #edges_1a_reit <- edges_1a_reit %>% group_by(from,to) %>% 
 #  summarise(n_reiter = n()) %>%
 #  arrange(-n_reiter)
-edges_1a_reit <- edges_1a_reit %>%
-  select(from,to,instancia,epoca,materia)
 
 # Creamos red:
 red_1a_reit <- tbl_graph(nodes = nodes_1a_reit, 
@@ -625,28 +636,9 @@ red_1a_reit
 
 **Visualización**
 
-```{r, fig.width=9, fig.height=9}
+```{r, fig.width=9, fig.height=7}
 set.seed(4)
 
-#Visualización inicial para crear layout
-red_pon_sec %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
-  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Sec') +
-  theme_graph(base_family="sans") #+ facet_nodes(~generacion) 
-
-  #labs(edge_color = "# reiteraciones") +
-  #theme(legend.position = c(1, 0), legend.justification = c(1, 0)) + 
-  #guides(shape = guide_legend(override.aes = list(size = 2))) + 
-  #guides(color = guide_legend(override.aes = list(size = 2))) 
-  #theme(legend.title = element_text(size = 6), legend.text = element_text(size = 6))
-```
-
-```{r, fig.width=9, fig.height=9}
 layout_pon_sec <- create_layout(red_pon_sec, layout = "kk")
 #RBJ_2770, -108.21630529
 #BBM_3084, -41.21438612
@@ -657,237 +649,38 @@ layout_pon_sec$y[layout_pon_sec$label == "RBJ_2770"] <- -50
 ggraph(layout_pon_sec) +
   geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
   geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_point(aes(size=central_eigen, colour=central_eigen, shape=cargo)) +
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
   ggtitle('Pon-Sec') +
-  theme_graph(base_family="sans")
-```
-  
-```{r, fig.width=9, fig.height=9}
-ggraph(layout_pon_sec) + 
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_edge_loop(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Sec, conexiones por época') +
-  theme_graph(base_family="sans") 
+  theme_graph(base_family="sans") +
+  labs(colour="Centralidad", size="Centralidad", shape="Cargo") 
 
-ggraph(layout_pon_sec) +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_edge_loop(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Sec, conexiones por época') +
-  theme_graph(base_family="sans") + facet_edges(~epoca)
-
-ggraph(layout_pon_sec) +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_edge_loop(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Sec, conexiones por instancia') +
-  theme_graph(base_family="sans") + facet_edges(~instancia)
-```
-
-
-```{r, fig.width=9, fig.height=9}
-red_pon_sec %>%
-  activate(nodes) %>% 
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
-  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
-  geom_node_point(aes(size=intermediacion, colour=factor(generacion))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Sec, nodos por generacion') +
-  theme_graph(base_family="sans") + facet_nodes(~generacion) 
-
-red_pon_sec %>%
-  activate(nodes) %>% 
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Sec, nodos por estados') +
-  theme_graph(base_family="sans")  + facet_nodes(~edo) 
-
-red_pon_sec %>%
-  activate(nodes) %>% 
-  filter(edo %in% c("Ciudad de Mexico","Chiapas","Estado de Mexico","Jalisco","Michoacan","Veracruz")) %>%
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Sec, nodos por estados específicos') +
-  theme_graph(base_family="sans")  + facet_nodes(~edo) 
-```
-
-```{r, fig.width=9, fig.height=9}
 red_pon_pon %>%
   activate(nodes) %>% 
-  #filter(intermediacion >= 10) %>%
-  #filter(in_degree >= 100) %>%
-  #filter(!node_is_isolated()) %>% 
   ggraph(layout = 'kk') + 
   geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
   geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  #geom_edge_link(#aes(width = n_reiter),
-  #               colour="gray", arrow = arrow(length = unit(2, "mm"))) + #,start_cap = circle(2, "mm"),end_cap = circle(2, "mm")) +
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_point(aes(size=central_eigen, colour=central_eigen)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
   ggtitle('Pon-Pon') +
-  theme_graph(base_family="sans")
-```
-
-```{r, fig.width=9, fig.height=9}
-red_pon_pon %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_edge_loop(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Pon, conexiones por época') +
-  theme_graph(base_family="sans") 
-
-red_pon_pon %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_edge_loop(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Pon, conexiones por época') +
-  theme_graph(base_family="sans") + facet_edges(~epoca)
-
-red_pon_pon %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_edge_loop(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Pon, conexiones por instancia') +
-  theme_graph(base_family="sans") + facet_edges(~instancia)
-```
-
-```{r, fig.width=9, fig.height=9}
-red_pon_pon %>%
-  activate(nodes) %>% 
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
-  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
-  geom_node_point(aes(size=intermediacion, colour=factor(generacion))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Pon, nodos por generacion') +
-  theme_graph(base_family="sans") + facet_nodes(~generacion) 
-
-red_pon_pon %>%
-  activate(nodes) %>% 
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Pon, nodos por estados') +
-  theme_graph(base_family="sans")  + facet_nodes(~edo) 
-
-red_pon_pon %>%
-  activate(nodes) %>% 
-  filter(edo %in% c("Ciudad de Mexico","Chiapas","Estado de Mexico","Jalisco","Michoacan","Veracruz")) %>%
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_edge_loop(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Pon-Pon, nodos por estados específicos') +
-  theme_graph(base_family="sans")  + facet_nodes(~edo) 
-```
-
-```{r, fig.width=9, fig.height=9}
-set.seed(4)
+  theme_graph(base_family="sans") +
+  labs(colour="Centralidad", size="Centralidad", shape="Cargo")
 
 red_1a_reit %>%
   activate(nodes) %>% 
   ggraph(layout = 'kk') + 
   geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
+  geom_node_point(aes(size=central_eigen, colour=central_eigen, shape=cargo)) + 
   geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('1a reit Pon-Sec') +
-  theme_graph(base_family="sans")
+  ggtitle('1er Criterio Pon-Sec') +
+  theme_graph(base_family="sans") +
+  labs(colour="Centralidad", size="Centralidad", shape="Cargo")
+
 ```
 
-```{r, fig.width=9, fig.height=9}
-red_1a_reit %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('1a reit Pon-Sec, conexiones por época') +
-  theme_graph(base_family="sans") 
-
-red_1a_reit %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('1a reit Pon-Sec, conexiones por época') +
-  theme_graph(base_family="sans") + facet_edges(~epoca)
-
-red_1a_reit %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('1a reit Pon-Sec, conexiones por instancia') +
-  theme_graph(base_family="sans") + facet_edges(~instancia)
-```
-
-```{r, fig.width=9, fig.height=9}
-red_1a_reit %>%
-  activate(nodes) %>% 
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
-  geom_node_point(aes(size=intermediacion, colour=factor(generacion))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('1a reit Pon-Sec, nodos por generacion') +
-  theme_graph(base_family="sans") + facet_nodes(~generacion) 
-
-red_1a_reit %>%
-  activate(nodes) %>% 
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('1a reit Pon-Sec, nodos por estados') +
-  theme_graph(base_family="sans")  + facet_nodes(~edo) 
-
-red_1a_reit %>%
-  activate(nodes) %>% 
-  filter(edo %in% c("Ciudad de Mexico","Chiapas","Estado de Mexico","Jalisco","Michoacan","Veracruz")) %>%
-  #filter(intermediacion >= 10) %>%
-  ggraph(layout = 'kk') + #
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('1a reit Pon-Sec, nodos por estados específicos') +
-  theme_graph(base_family="sans")  + facet_nodes(~edo) 
-```
 **Creación de sub-redes**
 ```{r}
-# Pon-Sec
+# ---Pon-Sec---
 
 ## Por Época
 edges_pon_sec_ep6  <- edges_pon_sec %>% filter(epoca == "Sexta Época") %>% mutate_at(vars(from,to), as.character)
@@ -1083,6 +876,8 @@ subred_pon_sec_penal <- subred_pon_sec_penal %>% activate(nodes) %>%
          central_eigen = centrality_eigen(),
          in_degree = centrality_degree(mode = "in"), 
          out_degree = centrality_degree(mode = "out"))
+
+subred_pon_sec_penal
 ```
 
 ```{r}
@@ -1292,6 +1087,8 @@ subred_pon_pon_penal <- subred_pon_pon_penal %>% activate(nodes) %>%
          central_eigen = centrality_eigen(),
          in_degree = centrality_degree(mode = "in"), 
          out_degree = centrality_degree(mode = "out"))
+
+subred_pon_pon_penal
 ```
 
 ```{r}
@@ -1491,603 +1288,6 @@ subred_1a_reit_penal <- subred_1a_reit_penal %>% activate(nodes) %>%
          central_eigen = centrality_eigen(),
          in_degree = centrality_degree(mode = "in"), 
          out_degree = centrality_degree(mode = "out"))
-```
 
-```{r, fig.width=9, fig.height=7}
-subred_pon_sec_ep6 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 6a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_ep7 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 7a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_ep8 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 8a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_ep9 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 9a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_ep10 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 10a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_pon_sec_tribunales %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_pleno %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_sala1 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_sala2 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_sala3 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_sala4 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_salaaux %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_pon_sec_tribunales %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_pleno %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_sala1 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_sala2 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_sala3 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_sala4 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_salaaux %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_pon_pon_tribunales %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_pleno %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_sala1 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_sala2 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_sala3 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_sala4 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_salaaux %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_pon_pon_tribunales %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_pleno %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_sala1 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_sala2 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_sala3 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_sala4 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_pon_salaaux %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Pon, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_1a_reit_tribunales %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_pleno %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_sala1 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_sala2 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_sala3 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_sala4 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_salaaux %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=epoca), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_1a_reit_tribunales %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Tribunales Colegiados de Circuito') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_pleno %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Pleno') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_sala1 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 1a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_sala2 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 2a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_sala3 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 3a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_sala4 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 4a Sala') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_salaaux %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, Sala Auxiliar') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_1a_reit_ep6 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 6a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_ep7 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 7a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_ep8 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 8a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_ep9 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 9a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_1a_reit_ep10 %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red 1a Reit, 10a época') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_pon_sec_admin %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_civil %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_comun %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_const %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_laboral %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_penal %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(aes(color=instancia), arrow = arrow(length = unit(2, "mm"))) + #colour="gray"
-  geom_node_point(aes(size=intermediacion, colour=central_eigen)) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
-subred_pon_sec_admin %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) + 
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Administrativa') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_civil %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Civil') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_comun %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Común') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_const %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Constitucional') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_laboral %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Laboral') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-
-subred_pon_sec_penal %>%
-  activate(nodes) %>% 
-  ggraph(layout = 'kk') +
-  geom_edge_fan(colour="gray", arrow = arrow(length = unit(2, "mm"))) +
-  geom_node_point(aes(size=intermediacion, colour=factor(edo))) + 
-  geom_node_text(aes(label=label), repel=T, size=2, nudge_y = 0.1, nudge_x = -0.1) +
-  ggtitle('Sub-red Pon-Sec, Penal') +
-  theme_graph(base_family="sans") #+ facet_edges(~epoca)
-```
-
-```{r, fig.width=9, fig.height=7}
+subred_1a_reit_penal
 ```

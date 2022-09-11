@@ -13,18 +13,19 @@ knitr::opts_chunk$set(echo = TRUE)
 Comenzamos cargando librerías y los datos correspondientes:
 (NOTA:  Hay que ejecutar el notebook "Analisis_Redes.Rmd" previamente para generar dataframes de tesis y datos sociodemográficos.)
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(tidyverse)
-library(tidygraph)
+library(tidygraph) 
 library(nnet)
 library(caret)
 library(pROC)
 library(randomForest)
+library(ggplot2)
 ```
 
 Cargamos y limpiamos los datos con los que trabajaremos:
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 # Cargamos datos:
 total_r <- total_id %>%
   select(instancia, epoca, id_ponente_socio, id_S1_socio, id_S2_socio, 
@@ -474,17 +475,66 @@ rf_4 <- randomForest(materia~., data = total_rf_all_mat_train_socio)
 Evaluamos la importancia de las variables:
 
 ```{r}
+#Guardamos los datos del Random Forest en dataframes para graficarlos con ggplot
+clas_materia_unicas <- as.data.frame(cbind(rownames(rf_1$importance),rf_1$importance))
+colnames(clas_materia_unicas) <- c("Variable","MeanDecreaseGini")
+clas_materia_unicas$MeanDecreaseGini <- as.numeric(clas_materia_unicas$MeanDecreaseGini)
+clas_materia_unicas$Variable = factor(clas_materia_unicas$Variable, levels=clas_materia_unicas[order(clas_materia_unicas$MeanDecreaseGini), "Variable"])
+
+clas_materia_unicas_socio <- as.data.frame(cbind(rownames(rf_2$importance),rf_2$importance))
+colnames(clas_materia_unicas_socio) <- c("Variable","MeanDecreaseGini")
+clas_materia_unicas_socio$MeanDecreaseGini <- as.numeric(clas_materia_unicas_socio$MeanDecreaseGini)
+clas_materia_unicas_socio$Variable = factor(clas_materia_unicas_socio$Variable, levels=clas_materia_unicas_socio[order(clas_materia_unicas_socio$MeanDecreaseGini), "Variable"])
+
+clas_materia_todas <- as.data.frame(cbind(rownames(rf_3$importance),rf_3$importance))
+colnames(clas_materia_todas) <- c("Variable","MeanDecreaseGini")
+clas_materia_todas$MeanDecreaseGini <- as.numeric(clas_materia_todas$MeanDecreaseGini)
+clas_materia_todas$Variable = factor(clas_materia_todas$Variable, levels=clas_materia_todas[order(clas_materia_todas$MeanDecreaseGini), "Variable"])
+
+clas_materia_todas_socio <- as.data.frame(cbind(rownames(rf_4$importance),rf_4$importance))
+colnames(clas_materia_todas_socio) <- c("Variable","MeanDecreaseGini")
+clas_materia_todas_socio$MeanDecreaseGini <- as.numeric(clas_materia_todas_socio$MeanDecreaseGini)
+clas_materia_todas_socio$Variable = factor(clas_materia_todas_socio$Variable, levels=clas_materia_todas_socio[order(clas_materia_todas_socio$MeanDecreaseGini), "Variable"])
+
 # Primer modelo (clasificar materia considerando sólo materias únicas):
-varImpPlot(rf_1)
+ggplot(clas_materia_unicas) + 
+  geom_point(aes(MeanDecreaseGini,Variable),color="blue",size=3) +
+  scale_x_continuous(labels = scales::comma) +
+  ggtitle('Clasificación de Materia') +
+  xlab("Importancia (Reducción Índice GINI)") +
+  ylab("Variable") +
+  theme_bw() +
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
 
 # Segundo modelo (clasificar materias con materias únicas y sólo datos sociodemográficos):
-varImpPlot(rf_2)
+ggplot(clas_materia_unicas_socio) + 
+  geom_point(aes(MeanDecreaseGini,Variable),color="blue",size=3) +
+  scale_x_continuous(labels = scales::comma) +
+  ggtitle('Clasificación de Materia (sólo variables sociodemográficas)') +
+  xlab("Importancia (Reducción Índice GINI)") +
+  ylab("Variable") +
+  theme_bw() +
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
 
 # Tercer modelo (clasificar materias considerando todas las materias):
-varImpPlot(rf_3)
+ggplot(clas_materia_todas) + 
+  geom_point(aes(MeanDecreaseGini,Variable),color="blue",size=3) +
+  scale_x_continuous(labels = scales::comma) +
+  ggtitle('Clasificación de Materia (todas)') +
+  xlab("Importancia (Reducción Índice GINI)") +
+  ylab("Variable") +
+  theme_bw() +
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
 
 # Cuarto modelo (clasificar materias considerando todas las materias y sólo datos sociodemográficos): 
-varImpPlot(rf_4)
+ggplot(clas_materia_todas_socio) + 
+  geom_point(aes(MeanDecreaseGini,Variable),color="blue",size=3) +
+  scale_x_continuous(labels = scales::comma) +
+  ggtitle('Clasificación de Materia (todas, sólo variables sociodemográficas)') +
+  xlab("Importancia (Reducción Índice GINI)") +
+  ylab("Variable") +
+  theme_bw() +
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
 ```
 
 Evaluamos el ajuste del modelo:
@@ -598,11 +648,36 @@ rf_6 <- randomForest(instancia~., data = total_rf_inst_train_socio)
 Evaluamos la importancia de las variables:
 
 ```{r}
+#Guardamos los datos del Random Forest en dataframes para graficarlos con ggplot
+clas_instancia <- as.data.frame(cbind(rownames(rf_5$importance),rf_5$importance))
+colnames(clas_instancia) <- c("Variable","MeanDecreaseGini")
+clas_instancia$MeanDecreaseGini <- as.numeric(clas_instancia$MeanDecreaseGini)
+clas_instancia$Variable = factor(clas_instancia$Variable, levels=clas_instancia[order(clas_instancia$MeanDecreaseGini), "Variable"])
+
+clas_instancia_socio <- as.data.frame(cbind(rownames(rf_6$importance),rf_6$importance))
+colnames(clas_instancia_socio) <- c("Variable","MeanDecreaseGini")
+clas_instancia_socio$MeanDecreaseGini <- as.numeric(clas_instancia_socio$MeanDecreaseGini)
+clas_instancia_socio$Variable = factor(clas_instancia_socio$Variable, levels=clas_instancia_socio[order(clas_instancia_socio$MeanDecreaseGini), "Variable"])
+
 # Quinto modelo (clasificar instancia considerando época):
-varImpPlot(rf_5)
+ggplot(clas_instancia) + 
+  geom_point(aes(MeanDecreaseGini,Variable),color="blue",size=3) +
+  scale_x_continuous(labels = scales::comma) +
+  ggtitle('Clasificación de Instancia') +
+  xlab("Importancia (Reducción Índice GINI)") +
+  ylab("Variable") +
+  theme_bw() +
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
 
 # Sexto modelo (clasificar la instancia sin considerar la época):
-varImpPlot(rf_6)
+ggplot(clas_instancia_socio) + 
+  geom_point(aes(MeanDecreaseGini,Variable),color="blue",size=3) +
+  scale_x_continuous(labels = scales::comma) +
+  ggtitle('Clasificación de Instancia (sólo variables sociodemográficas)') +
+  xlab("Importancia (Reducción Índice GINI)") +
+  ylab("Variable") +
+  theme_bw() +
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
 ```
 
 Evaluamos el ajuste del modelo:
