@@ -5,7 +5,7 @@ date: '2022-08-27'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 # Modelos de Regresión:  Clasificación de materias
@@ -244,7 +244,7 @@ ratios_1 %>%
 ```
 
 ```{r}
-# Segundo modelo:  Clasificación de materias considerando sólo tesis con materia única, y sólo datos 
+# Segundo modelo:  Clasificación de materias considerando sólo tesis con materia única, y sólo datos sociodemográficos.
 # Coeficientes más relevantes para materia Administrativa:
 ratios_2 %>%
   arrange(-Administrativa) %>%
@@ -504,17 +504,27 @@ ggplot(clas_materia_unicas) +
   xlab("Importancia (Reducción Índice GINI)") +
   ylab("Variable") +
   theme_bw() +
-  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=12),
+        plot.title = element_text(size=14))
+ggsave(file="clas_materia.png", width=13, height=8, units="cm")
 
 # Segundo modelo (clasificar materias con materias únicas y sólo datos sociodemográficos):
 ggplot(clas_materia_unicas_socio) + 
   geom_point(aes(MeanDecreaseGini,Variable),color="blue",size=3) +
   scale_x_continuous(labels = scales::comma) +
-  ggtitle('Clasificación de Materia (sólo variables sociodemográficas)') +
+  ggtitle('Clasificación de Materia', subtitle = '(sólo variables sociodemográficas)') +
   xlab("Importancia (Reducción Índice GINI)") +
   ylab("Variable") +
   theme_bw() +
-  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5),
+        plot.subtitle=element_text(hjust=0.5, vjust=0.5)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=12),
+        plot.title = element_text(size=14),
+        plot.subtitle = element_text(size=12))
+ggsave(file="clas_materia_socio.png", width=13, height=9, units="cm")
 
 # Tercer modelo (clasificar materias considerando todas las materias):
 ggplot(clas_materia_todas) + 
@@ -667,17 +677,27 @@ ggplot(clas_instancia) +
   xlab("Importancia (Reducción Índice GINI)") +
   ylab("Variable") +
   theme_bw() +
-  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=12),
+        plot.title = element_text(size=14))
+ggsave(file="clas_instancia.png", width=13, height=8, units="cm")
 
 # Sexto modelo (clasificar la instancia sin considerar la época):
 ggplot(clas_instancia_socio) + 
   geom_point(aes(MeanDecreaseGini,Variable),color="blue",size=3) +
   scale_x_continuous(labels = scales::comma) +
-  ggtitle('Clasificación de Instancia (sólo variables sociodemográficas)') +
+  ggtitle('Clasificación de Instancia', subtitle = '(sólo variables sociodemográficas)') +
   xlab("Importancia (Reducción Índice GINI)") +
   ylab("Variable") +
   theme_bw() +
-  theme(plot.title=element_text(hjust=0.5, vjust=0.5))
+  theme(plot.title=element_text(hjust=0.5, vjust=0.5),
+        plot.subtitle=element_text(hjust=0.5, vjust=0.5)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=12),
+        plot.title = element_text(size=14),
+        plot.subtitle = element_text(size=12))
+ggsave(file="clas_instancia_socio.png", width=13, height=9, units="cm")
 ```
 
 Evaluamos el ajuste del modelo:
@@ -739,7 +759,7 @@ total_r_inst_test_socio <- total_r[!sample_inst, ] %>%
   select(-id_socio, -anio, -materia, -epoca)
 ```
 
-Realizamos regresión logísticas multinomial:
+Realizamos regresión logística multinomial:
 
 ```{r}
 # (Estos modelos se generan más rápido que la regresión para materias, pero aún así tarda un poco)
@@ -911,5 +931,3 @@ metrics_6_PR %>% select(5,6)
 #Para calcular el área bajo la curva:
 multiclass.roc(total_r_inst_test_socio$instancia, as.numeric(prueba_6$instancia))
 ```
-
-
