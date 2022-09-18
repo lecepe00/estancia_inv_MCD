@@ -21,11 +21,16 @@ La estructura general del proyecto en la siguiente:
 2. **Análisis Exploratorio de los Datos**. Del paso anterior, se obtiene un conjunto de datos con 56,557 registros, equivalentes a 11,278 tesis de jurisprudencia por reiteración. Con estos datos, se realiza un análisis exploratorio de los datos.
 3. **Correlación de Datos Sociodemográficos**. Referencia cruzada de nombres obtenidos en el paso 1 con una base de datos sociodemográficos de los juzgadores y funcionarios del Poder Judicial de la Federación que posee el Dr. Ríos. Se asocian atributos sociodemográficos a 1,215 de los 1,641 Ponentes, y a 1,492 de los 5,521 Secretarios.
 4. **Modelos de Clasificación**. Se desarrollaron modelos de clasificación que ayuden a pronosticar la *materia* o *instancia* de una tesis. El objetivo de estos modelos no es en realidad el desarrollar un algoritmo predictivo para estas dos etiquetas de interés, sino el de generar pistas sobre las características operacionales o sociodemográficas más representativas que ayuden a clasificar y filtrar las redes en redes más pequeñas que faciliten su entendimiento. En específico, se realizó una regresión logística multinomial y bosques aleatorios de clasificación.
-  4.1. Clasificación de Materias
-  4.2. Clasificación de Instancias
+
+   4.1. Clasificación de Materias
+   
+   4.2. Clasificación de Instancias
+   
 5. **Análisis de Redes**. Se crearon redes que nos ayudaran a entender los mecanismos de creación y reiteración de las tesis en cuestión. En general, se analizaron 3 redes distintas: Red Ponente-Secretario, Red Ponente-Ponente y Red Primer Criterio (Ponente-Secretario). Haciendo uso del aprendizaje obtenido en el paso 4, se analizaron sub-redes a partir de estas tres principales.
-  5.1. Redes por Instancia
-  5.2. Redes por Materia
+
+   5.1. Redes por Instancia
+   
+   5.2. Redes por Materia
   
 ## Lenguaje de Programación
 
